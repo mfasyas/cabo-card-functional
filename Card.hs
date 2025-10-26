@@ -35,23 +35,24 @@ cardValue (Card r _ _) = case r of
   King   -> 10
   Joker  -> 15
 
+
+type Deck = [Card]
+type Pile = [Card]
+
+newtype Hand = Hand [Card] deriving (Eq)
+instance Show Hand where
+    show (Hand hs) = "[" ++ intercalate ", " (map showCardRS hs) ++ "]"
+
+instance Show Card where
+    show (Card r s p) = show r ++ " of " ++ show s ++ " " ++ show p
+
+-- =============================================================================
+-- Lists of functions
 addCards :: Card -> Card -> Int
 addCards a b = cardValue a + cardValue b -- this part could be not useful
 
 handScore :: Hand -> Int
 handScore (Hand hs) = sum (map cardValue hs)
-
-type Deck = [Card]
-newtype Hand = Hand [Card] deriving (Eq)
-
-instance Show Card where
-    show (Card r s p) = show r ++ " of " ++ show s ++ " " ++ show p
-
-showCardRS :: Card -> String
-showCardRS (Card r s _) = show r ++ " of " ++ show s
-
-instance Show Hand where
-    show (Hand hs) = "[" ++ intercalate ", " (map showCardRS hs) ++ "]"
 
 buildDeck :: Deck
 buildDeck = normalCards ++ jokerCards
@@ -64,6 +65,16 @@ buildDeck = normalCards ++ jokerCards
             powerFor King  = Trade
             powerFor _     = Normal
     jokerCards  = [ Card Joker RedJoker   Normal | _ <- [1..2] ] ++ [ Card Joker BlackJoker Normal | _ <- [1..2] ]
+
+showCardRS :: Card -> String
+showCardRS (Card r s _) = show r ++ " of " ++ show s
+
+-- This function takes a deck and returns:
+-- 1. The card on top
+-- 2. The *rest* of the deck
+drawCard :: Deck -> (Card, Deck)
+drawCard [] = error "Cannot draw from an empty deck!"
+drawCard (topCard : restOfDeck) = (topCard, restOfDeck)
 
 -- =============================================================================
 -- Card Test Data
