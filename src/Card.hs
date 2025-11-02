@@ -76,6 +76,8 @@ drawCard :: Deck -> (Card, Deck)
 drawCard [] = error "Cannot draw from an empty deck!"
 drawCard (topCard : restOfDeck) = (topCard, restOfDeck)
 
+
+-- =============================================================================
 -- =============================================================================
 -- Card Test Data
 testCard1 :: Card
