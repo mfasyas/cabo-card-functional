@@ -38,7 +38,10 @@ removeAt idx xs = let (l, r) = splitAt idx xs in (head r, l ++ tail r)
 showHandWithIndices :: Hand -> String
 showHandWithIndices (Hand cards) = 
     unlines $ zipWith showCard [1..] cards
-    where showCard idx card = show idx ++ ". " ++ showCardRS card
+    where 
+        showCard idx card 
+            | idx == 1  = "Card at " ++ show idx ++ ". " ++ showCardRS card
+            | otherwise = "Card at " ++ show idx
 
 -- Interactive player turn
 playerTurn :: Table -> Int -> IO Table
@@ -50,7 +53,7 @@ playerTurn table playerIdx = do
 
     -- Step 2: Show hand and get player choice
     putStrLn $ "\nPlayer " ++ show (playerId currentPlayer) ++ "'s turn"
-    putStrLn "Your hand (with newly drawn card at position 1):"
+    putStrLn "Current hand, top of Card is newly drawn Card:"
     putStrLn $ showHandWithIndices currentHand
 
     -- Step 3: Get valid input

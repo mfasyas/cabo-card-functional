@@ -32,9 +32,37 @@ data Table = Table
     }
 
 instance Show Table where
-    show (Table ps _ pile') = "Table:\n" ++ concatMap showPlayer ps ++ "\nDiscard Pile: " ++ show pile' ++ "\n"
+    show table =
+        let [p1, p2, p3, p4] = players table
+            row1 = showRow p1 p3
+            row2 = showRow p2 p4
+        in unlines
+            [ "========================================================="
+            , "                    Current Table View"
+            , "========================================================="
+            , row1
+            , ""
+            , row2
+            , "========================================================="
+            , "Discard Pile Top: " ++ showTop (discardPile table)
+            , "Remaining Deck:   " ++ show (length (drawDeck table)) ++ " cards"
+            , "========================================================="
+            ]
       where
-        showPlayer p = "\t Player " ++ show (playerId p) ++ ": " ++ show (hand p) ++ "\n"
+        showTop []    = "Empty"
+        showTop (x:_) = showCardRS x
+
+        showPlayer :: Player -> String
+        showPlayer p =
+            let Hand hs = hand p
+                masked  = unwords (replicate (length hs) "[??]")
+            in padRight 10 ("Player " ++ show (playerId p) ++ ":") ++ " " ++ masked
+
+        showRow :: Player -> Player -> String
+        showRow left right = showPlayer left ++ replicate 12 ' ' ++ showPlayer right
+
+        padRight :: Int -> String -> String
+        padRight n s = s ++ replicate (max 0 (n - length s)) ' '
 
 -- =============================================================================
 -- Player Functions
