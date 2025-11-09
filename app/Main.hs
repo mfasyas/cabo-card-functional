@@ -10,35 +10,32 @@ import Text.Read (readMaybe)
 main :: IO ()
 main = gameLoop
 
--- Initialize game and start the main game loop
+-- Inisialisasi Permainan
 gameLoop :: IO ()
 gameLoop = do
-    putStrLn "=== Starting the Game ==="
+    putStrLn "=== Memulai Permainan ==="
     
-    -- Create and shuffle the deck
+    -- Buat dek kartu acak
     shuffledDeck <- shuffleDeck buildDeck
+    -- assumsi pure sirna, coba dibuat seeded (?)
     
-    -- Set up initial table and deal cards
     let initialTable = table1 { drawDeck = shuffledDeck }
         gameTable = deal4CardsToEachPlayer initialTable
     
     putStrLn "\nInitial hands dealt:"
     print gameTable
     
-    -- peek phase
     peekCardPhase <- peekIt gameTable 0
     peekCardPhase <- peekIt gameTable 1
-    peekCardPhase <- peekIt gameTable 2
-    peekCardPhase <- peekIt gameTable 3
+    -- peekCardPhase <- peekIt gameTable 2
+    -- peekCardPhase <- peekIt gameTable 3
+    -- to be fixed for random player, for now 2 player
 
-    -- Start the game with player 1 (index 0)
     finalTable <- playRounds gameTable 0
+    putStrLn "\nPermainan Berakhir, skor saat ini:"
+    finalTable' <- showFinalScores finalTable
     
-    -- Show final state and scores
-    putStrLn "\nGame Over! Final scores:"
-    showFinalScores finalTable
-    
-    -- Ask for new game
+    -- Loop permainan
     putStrLn "\nPlay again? (y/n)"
     choice <- getLine
     if choice == "y"
@@ -52,47 +49,53 @@ peekIt table currentPlayerIdx = do
         Hand hs = hand p
         n = length hs
 
-    putStrLn $ "\nPlayer " ++ show (playerId p) ++ ", choose 2 cards to peek (1-" ++ show n ++ ")"
+    putStrLn $ "\nPemain " ++ show (playerId p) ++ ", pilih dua kartu untuk diintip (1-" ++ show n ++ ")"
     mapM_ (\i -> putStrLn $ show i ++ ". [??]") [1..n]
 
-    -- Read tuple input (a,b)
-    putStrLn "Enter two distinct indices separated by space (e.g. 1 3):"
+    putStrLn "Masukkan pilihan kartu (contoh 1 3):"
     input <- words <$> getLine
 
     case mapM readMaybe input of
       Just [a,b]
         | a /= b && a >= 1 && a <= n && b >= 1 && b <= n -> do
             let showCardAt i = showCardRS (hs !! (i-1))
-            putStrLn "You peeked: "
+            putStrLn "Kartu yang diintip sesuai urutan di tangan: "
             putStrLn $ " - " ++ showCardAt a
             putStrLn $ " - " ++ showCardAt b
-            return table  -- we don’t modify anything
+            return table
       _ -> do
-          putStrLn "Invalid input! Please enter two distinct numbers (e.g. 1 3)."
+          putStrLn "Salah mas, masukkan sesuai tangan dan sesuai format (e.g. 1 3)."
           peekIt table currentPlayerIdx
 
 -- Main game round loop
 playRounds :: Table -> Int -> IO Table
 playRounds table currentPlayerIdx
     | null (drawDeck table) = do
-        putStrLn "\nDeck is empty! Game Over!"
+        putStrLn "\nKartu di dek habis! Permainan berakhir!"
         return table
     | otherwise = do
-        putStrLn "\nCurrent table state:"
         print table
+        let numPlayers = length $ players table
         
-        -- Execute current player's turn
+        -- Eksekusi giliran pemain
         newTable <- playerTurn table currentPlayerIdx
         
-        -- Move to next player (cycle through 0-3)
-        let nextPlayerIdx = (currentPlayerIdx + 1) `mod` 4
-        
-        -- Continue with next player
+        -- Set indeks pada pemain berikutnya
+        let nextPlayerIdx = (currentPlayerIdx + 1) `mod` numPlayers
         playRounds newTable nextPlayerIdx
 
--- Show final scores for all players
-showFinalScores :: Table -> IO ()
-showFinalScores table = 
+-- Skor akhir masing-masing pemain
+showFinalScores :: Table -> IO Table
+showFinalScores table = do
     forM_ (players table) $ \p -> do
         let score = playerScore p
-        putStrLn $ "Player " ++ show (playerId p) ++ ": " ++ show score ++ " points"
+            Hand hs = hand p
+        putStrLn $ "Skor setiap pemain " ++ show (playerId p) ++ ": " ++ show score ++ " poin dengan (" ++ show (length hs) ++ " kartu)"
+
+    let ranked = rankPlayers table
+        winner = head ranked
+    putStrLn $ "\nPemenang: Pemain " ++ show (playerId winner)
+
+    let updatedTable = updateStandings table
+    showStandings updatedTable
+    return updatedTable

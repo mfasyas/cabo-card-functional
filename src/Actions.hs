@@ -3,6 +3,45 @@ module Actions where
 import Card
 import Player
 
+import Data.List (minimumBy, sortBy)
+import Data.Ord (comparing)
+
+-- Menentukan peringkat berdasarkan skor
+rankPlayers :: Table -> [Player]
+rankPlayers table =
+    let ps = players table
+    in sortBy comparePlayers ps
+  where
+    comparePlayers p1 p2 =
+        case compare (playerScore p1) (playerScore p2) of
+            EQ -> compare (lengthHand p1) (lengthHand p2)
+            other -> other
+    lengthHand (Player _ (Hand hs)) = length hs
+
+-- Update standings secara keseluruhan
+-- ======================== ini belum selesai ========================
+updateStandings :: Table -> Table
+updateStandings table =
+    let ranking = rankPlayers table
+        n = length ranking
+        -- awardPoints: n-1 down to 0
+        awardPoints = [n-1, n-2 .. 0]
+        updates = zip (map playerId ranking) awardPoints
+        updateScore (pid, pts) =
+            case lookup pid (standings table) of
+                Just old -> (pid, old + pts)
+                Nothing  -> (pid, pts)
+        newStandings = map updateScore updates
+    in table { standings = newStandings }
+
+-- Tampilan Standings
+showStandings :: Table -> IO ()
+showStandings table = do
+    putStrLn "\n=== Overall Standings ==="
+    let sorted = sortBy (flip $ comparing snd) (standings table)
+    mapM_ (\(pid, pts) ->
+        putStrLn $ "Player " ++ show pid ++ ": " ++ show pts ++ " pts") sorted
+
 
 -- Step 1: Draw for player, put new card at front of hand
 drawForHand :: Table -> Int -> Table
@@ -42,8 +81,9 @@ showHandWithIndices (Hand cards) =
         showCard idx card = "Card at " ++ show idx ++ ". " ++ showCardRS card
             -- | idx == 1  = "Card at " ++ show idx ++ ". " ++ showCardRS card
             -- | otherwise = "Card at " ++ show idx
+-- untuk saat ini buka dulu sebagai testing agar mudah, tinggal uncomment untuk tutup dan hapus line = where
 
--- Interactive player turn
+-- Player Turn, IO aktivitas berdasarkan aksi player
 playerTurn :: Table -> Int -> IO Table
 playerTurn table playerIdx = do
     let currentPlayer = players table !! playerIdx
@@ -53,8 +93,7 @@ playerTurn table playerIdx = do
     if endChoice == "y"
         then do
             putStrLn $ "\nPlayer " ++ show (playerId currentPlayer) ++ " has ended the game!"
-            -- Use a special marker: clear draw deck to trigger end in playRounds
-            return table { drawDeck = [] }
+            return table { drawDeck = [] } -- Trigger end case di mainLoop
         else do
             -- Step 1: Draw card
             let tableAfterDraw = drawForHand table playerIdx
@@ -133,3 +172,14 @@ askPlayerToAdd table playerIdx targetRank = do
                 putStrLn "Wrong rank! You must draw one penalty card."
                 let t1 = drawForHand table playerIdx
                 return t1
+
+determineWinner :: Table -> Player
+determineWinner table =
+    let ps = players table
+    in minimumBy comparePlayers ps
+  where
+    comparePlayers p1 p2 =
+        case compare (playerScore p1) (playerScore p2) of
+            EQ -> compare (handCount p1) (handCount p2)
+            other -> other
+    handCount (Player _ (Hand hs)) = length hs
