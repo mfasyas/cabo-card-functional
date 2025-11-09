@@ -29,7 +29,7 @@ data Table = Table
     { players :: [Player]
     , drawDeck :: Deck
     , discardPile :: Pile
-    }
+    } deriving(Eq)
 
 instance Show Table where
     show table =

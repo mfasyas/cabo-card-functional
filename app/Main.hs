@@ -7,7 +7,6 @@ import Data.List (find)
 import Control.Monad (forM_)
 import Text.Read (readMaybe)
 
-
 main :: IO ()
 main = gameLoop
 
@@ -64,7 +63,7 @@ peekIt table currentPlayerIdx = do
       Just [a,b]
         | a /= b && a >= 1 && a <= n && b >= 1 && b <= n -> do
             let showCardAt i = showCardRS (hs !! (i-1))
-            putStrLn $ "You peeked: "
+            putStrLn "You peeked: "
             putStrLn $ " - " ++ showCardAt a
             putStrLn $ " - " ++ showCardAt b
             return table  -- we don’t modify anything
@@ -79,7 +78,7 @@ playRounds table currentPlayerIdx
         putStrLn "\nDeck is empty! Game Over!"
         return table
     | otherwise = do
-        putStrLn $ "\nCurrent table state:"
+        putStrLn "\nCurrent table state:"
         print table
         
         -- Execute current player's turn
