@@ -29,6 +29,7 @@ library
       Player
       Actions
   other-modules:
+      View
       Paths_cabo_functional_fix
   autogen-modules:
       Paths_cabo_functional_fix
@@ -36,8 +37,10 @@ library
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      array
+      aeson
+    , array
     , base >=4.7 && <5
+    , containers
     , gloss
     , mtl
     , random
@@ -56,9 +59,11 @@ executable cabo-functional-fix-exe
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      array
+      aeson
+    , array
     , base >=4.7 && <5
     , cabo-functional-fix
+    , containers
     , gloss
     , mtl
     , random
@@ -78,9 +83,11 @@ test-suite cabo-functional-fix-test
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      array
+      aeson
+    , array
     , base >=4.7 && <5
     , cabo-functional-fix
+    , containers
     , gloss
     , mtl
     , random

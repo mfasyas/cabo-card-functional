@@ -16,12 +16,16 @@
       background: #ffffff;
       border: 1px solid #ccc;
       padding: 12px;
-      white-space: pre; /* penting untuk tampilan ASCII dari show Table */
+      white-space: pre;
+      margin-bottom: 16px;
     }
     button {
-      margin-top: 10px;
+      margin: 4px 8px 4px 0;
       padding: 6px 12px;
       cursor: pointer;
+    }
+    input {
+      width: 40px;
     }
   </style>
 </head>
@@ -29,23 +33,59 @@
   <h1>State Permainan (Table)</h1>
 
   <div id="state-box">Loading...</div>
-  <button id="refresh-btn">Refresh State</button>
+
+  <div>
+    <button id="refresh-btn">Refresh State</button>
+    <button id="newgame-btn">New Game</button>
+  </div>
+
+  <div style="margin-top: 10px;">
+    <label>
+      Player index:
+      <input id="player-idx" type="number" value="0" min="0">
+    </label>
+    <button id="draw-btn">Draw untuk player</button>
+  </div>
 
   <script>
     async function loadState() {
-      try {
-        const res = await fetch('/state');
-        const txt = await res.text();
-        document.getElementById('state-box').textContent = txt;
-      } catch (e) {
-        document.getElementById('state-box').textContent =
-          'Gagal mengambil state: ' + e;
+      const res = await fetch('/state');
+      const data = await res.json(); // <-- parse JSON
+
+      const box = document.getElementById('state-box');
+
+      // bikin HTML dari JSON
+      let html = '';
+
+      html += `Deck tersisa: ${data.tvDeckCount}\n`;
+      html += `Kartu paling atas discard: ${data.tvDiscardTop || '-'}\n\n`;
+
+      html += 'Pemain:\n';
+      for (const p of data.tvPlayers) {
+        html += `- Player ${p.pvId}: score=${p.pvScore}, kartu=${p.pvHandSize}\n`;
+        // kalau mau tampilkan kartu:
+        html += `  Kartu: ${p.pvCardsText.join(', ')}\n`;
       }
+
+      box.textContent = html;
+    }
+
+    async function newGame() {
+      await fetch('/new-game', { method: 'POST' });
+      await loadState();
+    }
+
+    async function drawForPlayer() {
+      const idx = document.getElementById('player-idx').value;
+      await fetch('/draw?player=' + idx, { method: 'POST' });
+      await loadState();
     }
 
     document.getElementById('refresh-btn').addEventListener('click', loadState);
+    document.getElementById('newgame-btn').addEventListener('click', newGame);
+    document.getElementById('draw-btn').addEventListener('click', drawForPlayer);
 
-    // load pertama kali saat halaman dibuka
+    // load pertama kali
     loadState();
   </script>
 </body>
