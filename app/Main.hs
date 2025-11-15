@@ -1,11 +1,12 @@
 module Main where
 
-import Card
-import Player
-import Actions
 import Data.List (find)
 import Control.Monad (forM_)
 import Text.Read (readMaybe)
+
+import Card
+import Player
+import Actions
 
 main :: IO ()
 main = gameLoop

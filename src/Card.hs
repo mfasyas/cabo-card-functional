@@ -1,91 +1,120 @@
 module Card where
+
 import Foreign (Storable(peek))
 import GHC.Base (build)
 import Data.List (intercalate)
+import System.Random (randomRIO)
+import Data.Array.IO (IOArray, newListArray, readArray, writeArray)
+import Control.Monad (forM)
 
-data Suit = Hearts | Diamonds | Clubs | Spades | RedJoker | BlackJoker
+data Suit = Hearts | Diamonds | Clubs | Spades | Red | Black
   deriving (Show, Eq)
 
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Joker
   deriving (Show, Eq, Ord, Enum, Bounded)
 
-data Powerup = Normal | Peek | Trade
+data Powerup = Normal | PeekSelf | PeekOpponent | PeekSO | Switch | PeekSwitch | PeekDouble
   deriving (Show, Eq)
 
-data Card = Card
-  { rank    :: Rank
-  , suit    :: Suit
-  , powerup :: Powerup
-  } deriving (Eq)
-
-cardValue :: Card -> Int
-cardValue (Card r _ _) = case r of
-  Ace    -> 1
-  Two    -> 2
-  Three  -> 3
-  Four   -> 4
-  Five   -> 5
-  Six    -> 6
-  Seven  -> 7
-  Eight  -> 8
-  Nine   -> 9
-  Ten    -> 10
-  Jack   -> 10
-  Queen  -> 10
-  King   -> 10
-  Joker  -> 15
-
+data Card = Card {rank :: Rank, suit:: Suit, powerup :: Powerup} deriving (Eq)
 
 type Deck = [Card]
-type Pile = [Card]
 
 newtype Hand = Hand [Card] deriving (Eq)
+
 instance Show Hand where
     show (Hand hs) = "[" ++ intercalate ", " (map showCardRS hs) ++ "]"
 
 instance Show Card where
-    show (Card r s p) = show r ++ " of " ++ show s ++ " " ++ show p
+    show (Card r s _) = show r ++ " of " ++ show s
+
+{-
+  - PeekSelf        -- open 1 card from player's hand
+  - PeekOpponent    -- open 1 card from opponent's hand
+  - PeekSO          -- open 1 card from player and opponent hand
+  - Switch          -- switch 1 card with opponent without looking the card
+  - PeekSwitch      -- open 1 card from hand and opponent. Switch 1 card with opponent
+  - PeekDouble      -- open 2 card from hand and opponent
+
+  =========================================== Card Info ===========================================
+  1-6 : Normal        , normal value
+  7/8 : PeekSelf      , normal value
+  9/10: PeekOpponent  , normal value
+  10  : PeekSO        , normal value
+  J/Q : Switch        , value 11
+  Kred: Normal        , value 0
+  Kblk: PeekSwitch    , value 12
+  BJ  : PeekDouble    , value 15
+  RJ  : Normal        , value -1
+-}
 
 -- =============================================================================
 -- Lists of functions
-addCards :: Card -> Card -> Int
-addCards a b = cardValue a + cardValue b -- Ini bisa aja gak guna
 
-handScore :: Hand -> Int
-handScore (Hand hs) = sum (map cardValue hs)
+valueRules :: Rank -> Suit -> Int
+valueRules Joker Red         = -1
+valueRules Joker Black       = 15
+valueRules Jack _            = 11
+valueRules Queen _           = 11
+valueRules King s | s `elem` [Hearts, Diamonds] = 0
+valueRules King s | s `elem` [Clubs,  Spades]   = 12
+valueRules r _ = fromEnum r + 1 
+
+powerRules :: Rank -> Suit -> Powerup
+powerRules Joker Black      = PeekDouble
+powerRules Joker Red        = Normal
+powerRules King s | s `elem` [Clubs, Spades] = PeekSwitch
+powerRules King _           = Normal
+powerRules Jack _           = Switch
+powerRules Queen _          = Switch
+powerRules Seven _          = PeekSelf
+powerRules Eight _          = PeekSelf
+powerRules Nine _           = PeekOpponent
+powerRules Ten _            = PeekSO
+powerRules _ _              = Normal
+
+cardValue :: Card -> Int
+cardValue (Card r s _) = valueRules r s
 
 buildDeck :: Deck
-buildDeck = normalCards ++ jokerCards
+buildDeck = standard ++ jokers
   where
-    normalCards = [ Card r s (powerFor r) | s <- [Hearts, Diamonds, Clubs, Spades], r <- [Ace .. King] ]
-        where 
-            powerFor :: Rank -> Powerup
-            powerFor Jack  = Trade
-            powerFor Queen = Trade
-            powerFor King  = Trade
-            powerFor _     = Normal
-    jokerCards  = [ Card Joker RedJoker   Normal | _ <- [1..2] ] ++ [ Card Joker BlackJoker Normal | _ <- [1..2] ]
+    standard =
+      [ Card r s (powerRules r s)
+      | r <- [Ace .. King]
+      , s <- [Hearts, Diamonds, Clubs, Spades]
+      ]
+
+    jokers =
+      [ Card Joker Red  (powerRules Joker Red)
+      , Card Joker Red   (powerRules Joker Red)
+      , Card Joker Black (powerRules Joker Black)
+      , Card Joker Black (powerRules Joker Black)
+      ]
 
 showCardRS :: Card -> String
-showCardRS (Card r s _) = show r ++ " of " ++ show s
+showCardRS (Card r s _) = show r ++ " of " ++ show s -- to be deleted
 
--- This function takes a deck and returns:
--- 1. The card on top
--- 2. The *rest* of the deck
 drawCard :: Deck -> (Card, Deck)
 drawCard [] = error "Cannot draw from an empty deck!"
 drawCard (topCard : restOfDeck) = (topCard, restOfDeck)
 
-
--- =============================================================================
--- Card Test Data
-testCard1 :: Card
-testCard1 = Card { rank = Ace, suit = Hearts, powerup = Peek }
--- =============================================================================
--- Deck Test
-deck1 :: [Card]
-deck1 = take 10 buildDeck
-
-deck2 :: [Card]
-deck2 = filter (\c -> rank c `elem` [Jack, Queen, King, Joker]) buildDeck
--- =============================================================================
+-- A Fisher-Yates shuffle function using your IO imports
+shuffleDeck :: Deck -> IO Deck
+shuffleDeck cards = do
+    let len = length cards
+    -- Create a mutable array from the card list
+    arr <- newListArray (0, len - 1) cards :: IO (IOArray Int Card)
+    
+    -- Perform the shuffle
+    forM [0 .. len - 2] $ \i -> do
+        j <- randomRIO (i, len - 1) -- Get a random index
+        vi <- readArray arr i        -- Swap elements
+        vj <- readArray arr j
+        writeArray arr i vj
+        writeArray arr j vi
+    
+    -- Convert the mutable array back to a pure list
+    -- (The "elems" function from Data.Array does this, but this way works too)
+    mapM (readArray arr) [0 .. len - 1]
+    -- shuffle ini masih random, asumsi pure function gagal

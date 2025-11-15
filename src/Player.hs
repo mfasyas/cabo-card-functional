@@ -2,17 +2,24 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 {-# HLINT ignore "Use forM_" #-}
 module Player where
+
 import Card
-import System.Random (randomRIO)
-import Data.Array.IO (IOArray, newListArray, readArray, writeArray)
-import Control.Monad (forM)
-import Card (Deck)
 
 data Player = Player 
     {
         playerId :: Int,
         hand :: Hand
     } deriving (Show, Eq)
+
+data Table = Table
+    { players :: [Player]
+    , drawDeck :: Deck
+    , discardPile :: Deck
+    , standings :: [(Int, Int)] -- (idPlayer, score)
+    } deriving (Eq)
+
+handScore :: Hand -> Int
+handScore (Hand hs) = sum (map cardValue hs)
 
 playerScore :: Player -> Int
 playerScore player = handScore (hand player) 
@@ -24,14 +31,6 @@ instance Ord Player where
             other -> other
         where
             handSize p = let Hand hs = hand p in length hs
-
-data Table = Table
-    { players :: [Player]
-    , drawDeck :: Deck
-    , discardPile :: Pile
-    , standings :: [(Int, Int)] -- (idPlayer, score)
-    } deriving (Eq)
-
 
 instance Show Table where
     show table =
@@ -62,26 +61,6 @@ instance Show Table where
 
 -- =============================================================================
 -- Player Functions
-
--- A Fisher-Yates shuffle function using your IO imports
-shuffleDeck :: Deck -> IO Deck
-shuffleDeck cards = do
-    let len = length cards
-    -- Create a mutable array from the card list
-    arr <- newListArray (0, len - 1) cards :: IO (IOArray Int Card)
-    
-    -- Perform the shuffle
-    forM [0 .. len - 2] $ \i -> do
-        j <- randomRIO (i, len - 1) -- Get a random index
-        vi <- readArray arr i        -- Swap elements
-        vj <- readArray arr j
-        writeArray arr i vj
-        writeArray arr j vi
-    
-    -- Convert the mutable array back to a pure list
-    -- (The "elems" function from Data.Array does this, but this way works too)
-    mapM (readArray arr) [0 .. len - 1]
-    -- shuffle ini masih random, asumsi pure function gagal
 
 dealToPlayer :: Card -> Player -> Player
 dealToPlayer card player =

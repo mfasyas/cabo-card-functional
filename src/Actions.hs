@@ -1,10 +1,10 @@
 module Actions where
 
-import Card
-import Player
-
 import Data.List (minimumBy, sortBy)
 import Data.Ord (comparing)
+
+import Card
+import Player
 
 -- Menentukan peringkat berdasarkan skor
 rankPlayers :: Table -> [Player]
@@ -41,7 +41,6 @@ showStandings table = do
     let sorted = sortBy (flip $ comparing snd) (standings table)
     mapM_ (\(pid, pts) ->
         putStrLn $ "Player " ++ show pid ++ ": " ++ show pts ++ " pts") sorted
-
 
 -- Step 1: Draw for player, put new card at front of hand
 drawForHand :: Table -> Int -> Table
