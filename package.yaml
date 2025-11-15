@@ -24,6 +24,12 @@ dependencies:
 - random
 - array
 - mtl
+- gloss
+- scotty
+- text
+- mtl
+- gloss
+- transformers
 
 ghc-options:
 - -Wall
@@ -38,6 +44,17 @@ ghc-options:
 
 library:
   source-dirs: src
+  exposed-modules:
+    - Card
+    - Player
+    - Actions
+
+  dependencies:
+    - base >= 4.7 && < 5
+    - random
+    - array
+    - gloss
+
 
 executables:
   cabo-functional-fix-exe:

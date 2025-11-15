@@ -49,7 +49,7 @@ instance Show Card where
 -- =============================================================================
 -- Lists of functions
 addCards :: Card -> Card -> Int
-addCards a b = cardValue a + cardValue b -- this part could be not useful
+addCards a b = cardValue a + cardValue b -- Ini bisa aja gak guna
 
 handScore :: Hand -> Int
 handScore (Hand hs) = sum (map cardValue hs)
@@ -77,7 +77,6 @@ drawCard [] = error "Cannot draw from an empty deck!"
 drawCard (topCard : restOfDeck) = (topCard, restOfDeck)
 
 
--- =============================================================================
 -- =============================================================================
 -- Card Test Data
 testCard1 :: Card

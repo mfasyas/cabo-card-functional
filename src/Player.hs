@@ -29,40 +29,36 @@ data Table = Table
     { players :: [Player]
     , drawDeck :: Deck
     , discardPile :: Pile
-    }
+    , standings :: [(Int, Int)] -- (idPlayer, score)
+    } deriving (Eq)
+
 
 instance Show Table where
     show table =
-        let [p1, p2, p3, p4] = players table
-            row1 = showRow p1 p3
-            row2 = showRow p2 p4
+        let [p1, p2] = players table
+            row = showRow p1 p2
         in unlines
-            [ "========================================================="
-            , "                    Current Table View"
-            , "========================================================="
-            , row1
-            , ""
-            , row2
-            , "========================================================="
-            , "Discard Pile Top: " ++ showTop (discardPile table)
-            , "Remaining Deck:   " ++ show (length (drawDeck table)) ++ " cards"
-            , "========================================================="
+            [ "========================================================================"
+            , "                                  Meja"
+            , "========================================================================"
+            , row
+            , "========================================================================"
+            , "Dek Buangan: " ++ showTop (discardPile table)
+            , "Dek tersisa: " ++ show (length (drawDeck table)) ++ " kartu"
+            , "========================================================================"
             ]
       where
-        showTop []    = "Empty"
+        showTop []    = "Kosong"
         showTop (x:_) = showCardRS x
 
         showPlayer :: Player -> String
         showPlayer p =
             let Hand hs = hand p
-                masked  = unwords (replicate (length hs) "[??]")
-            in padRight 10 ("Player " ++ show (playerId p) ++ ":") ++ " " ++ masked
+                masked  = unwords (replicate (length hs) "[()]")
+            in "Pemain " ++ show (playerId p) ++ ": " ++ masked
 
         showRow :: Player -> Player -> String
-        showRow left right = showPlayer left ++ replicate 12 ' ' ++ showPlayer right
-
-        padRight :: Int -> String -> String
-        padRight n s = s ++ replicate (max 0 (n - length s)) ' '
+        showRow left right = showPlayer left ++ replicate 6 ' ' ++ showPlayer right
 
 -- =============================================================================
 -- Player Functions
@@ -85,41 +81,32 @@ shuffleDeck cards = do
     -- Convert the mutable array back to a pure list
     -- (The "elems" function from Data.Array does this, but this way works too)
     mapM (readArray arr) [0 .. len - 1]
+    -- shuffle ini masih random, asumsi pure function gagal
 
 dealToPlayer :: Card -> Player -> Player
 dealToPlayer card player =
   let Hand hs = hand player
   in player { hand = Hand (card : hs) }
 
--- This function combines drawing and dealing
+-- Kombinasi deal dan discard
 playerDraw :: Deck -> Player -> (Player, Deck)
 playerDraw deck player =
-    -- 1. Draw a card, getting the card and the new deck
     let (drawnCard, newDeck) = drawCard deck
-    
-    -- 2. Give that card to the player using your existing function
         newPlayer = dealToPlayer drawnCard player
-        
-    -- 3. Return the new player and the new deck
     in (newPlayer, newDeck)
 
 dealOneCard :: ([Player], Deck) -> Player -> ([Player], Deck)
 dealOneCard (updatedPlayers, currentDeck) player =
-    let 
-        (newPlayer, newDeck) = playerDraw currentDeck player
-    in 
-        (newPlayer : updatedPlayers, newDeck)
+    let (newPlayer, newDeck) = playerDraw currentDeck player
+    in (newPlayer : updatedPlayers, newDeck)
 
 dealRound :: Table -> Table
 dealRound table =
     let 
         initialPlayer = players table
         initialDeck = drawDeck table
-
         (reversedNewPlayers, finalDeck) = foldl dealOneCard ([], initialDeck) initialPlayer
-
         newPlayers = reverse reversedNewPlayers
-
     in
         table { players = newPlayers, drawDeck = finalDeck }
 
@@ -128,7 +115,7 @@ deal4CardsToEachPlayer table =
     foldl (\currentTable _ -> dealRound currentTable) table [1..4]
 
 -- =============================================================================
--- Player Test Data
+-- Persiapan player, maks 4 pemain
 player1 :: Player
 player1 = Player {
     playerId = 1, 
@@ -152,14 +139,14 @@ player4 = Player
   { playerId = 4
   , hand = Hand []
   }
--- =============================================================================
--- Table Test Data
+
+-- tetapkan 2 pemain untuk saat ini agar mudah dites
 table1 :: Table
 table1 = Table 
-    { players = [player1, player2, player3, player4]
+    { players = [player1, player2]
     , drawDeck = buildDeck
     , discardPile = []
+    , standings = [(1,0), (2,0)]
     }
-
 -- =============================================================================
 
