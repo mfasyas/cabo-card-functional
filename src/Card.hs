@@ -39,7 +39,7 @@ instance Show Card where
   =========================================== Card Info ===========================================
   1-6 : Normal        , normal value
   7/8 : PeekSelf      , normal value
-  9/10: PeekOpponent  , normal value
+  9   : PeekOpponent  , normal value
   10  : PeekSO        , normal value
   J/Q : Switch        , value 11
   Kred: Normal        , value 0

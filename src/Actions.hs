@@ -5,6 +5,7 @@ import Data.Ord (comparing)
 
 import Card
 import Player
+import Powerups
 
 -- Menentukan peringkat berdasarkan skor
 rankPlayers :: Table -> [Player]
@@ -69,8 +70,8 @@ discardFromHand table playerIdx discardIdx =
     in table { players = newPlayers, discardPile = newPile }
 
 -- Helper function to remove element at index
-removeAt :: Int -> [a] -> (a, [a])
-removeAt idx xs = let (l, r) = splitAt idx xs in (head r, l ++ tail r)
+-- removeAt :: Int -> [a] -> (a, [a])
+-- removeAt idx xs = let (l, r) = splitAt idx xs in (head r, l ++ tail r)
 
 -- Show a player's hand with indices
 showHandWithIndices :: Hand -> String
@@ -82,34 +83,35 @@ showHandWithIndices (Hand cards) =
             -- | otherwise = "Card at " ++ show idx
 -- untuk saat ini buka dulu sebagai testing agar mudah, tinggal uncomment untuk tutup dan hapus line = where
 
--- Player Turn, IO aktivitas berdasarkan aksi player
 playerTurn :: Table -> Int -> IO Table
 playerTurn table playerIdx = do
-    let currentPlayer = players table !! playerIdx
+    let 
+        currentPlayer = players table !! playerIdx
+        tableAfterDraw = drawForHand table playerIdx
+        updatedPlayer = players tableAfterDraw !! playerIdx
+        currentHand = hand updatedPlayer
+
     putStrLn $ "\nPlayer " ++ show (playerId currentPlayer) ++ "'s turn"
+
+    putStrLn "Current hand, top of the Card is newly drawn Card:"
+    putStrLn $ showHandWithIndices currentHand
+
+    choice <- getValidChoice (length $ let Hand h = currentHand in h)
+    let tableAfterDiscard = discardFromHand tableAfterDraw playerIdx choice
+    putStrLn $ "Card " ++ show choice ++ " has been discarded."
+
+    tableAfterPower <- runPowerupOnTopDiscard tableAfterDiscard playerIdx
+
     putStrLn "Do you want to end the game now? (y/n)"
     endChoice <- getLine
+
     if endChoice == "y"
-        then do
-            putStrLn $ "\nPlayer " ++ show (playerId currentPlayer) ++ " has ended the game!"
-            return table { drawDeck = [] } -- Trigger end case di mainLoop
-        else do
-            -- Step 1: Draw card
-            let tableAfterDraw = drawForHand table playerIdx
-                updatedPlayer = players tableAfterDraw !! playerIdx
-                currentHand = hand updatedPlayer
-
-            -- Step 2: Show hand and ask discard
-            putStrLn "Current hand, top of Card is newly drawn Card:"
-            putStrLn $ showHandWithIndices currentHand
-
-            -- Step 3: Discard
-            choice <- getValidChoice (length $ let Hand h = currentHand in h)
-            let tableAfterDiscard = discardFromHand tableAfterDraw playerIdx choice
-            putStrLn $ "Card " ++ show choice ++ " has been discarded."
-
-            -- Step 4: Trigger addToPile phase
-            addToPile tableAfterDiscard playerIdx
+	then do
+	    putStrLn $ "\nPlayer " ++ show (playerId currentPlayer) ++ " has ended the game!"
+            return tableAfterPower { drawDeck = [] } -- Trigger end case di mainLoop
+	
+	else do
+	    addToPile tableAfterPower playerIdx
 
 -- Helper to get valid input
 getValidChoice :: Int -> IO Int
@@ -121,7 +123,6 @@ getValidChoice maxIdx = do
         _ -> do
             putStrLn "Please choose a valid index!"
             getValidChoice maxIdx
-
 
 -- =============================================================================================
 

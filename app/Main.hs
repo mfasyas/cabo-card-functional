@@ -19,6 +19,7 @@ gameLoop = do
     -- Buat dek kartu acak
     shuffledDeck <- shuffleDeck buildDeck
     -- assumsi pure sirna, coba dibuat seeded (?)
+    -- bisa dibuat ala-ala balatro
     
     let initialTable = table1 { drawDeck = shuffledDeck }
         gameTable = deal4CardsToEachPlayer initialTable

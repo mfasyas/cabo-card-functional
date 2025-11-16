@@ -24,7 +24,6 @@ dependencies:
 - random
 - array
 - mtl
-- gloss
 
 ghc-options:
 - -Wall
@@ -48,7 +47,6 @@ library:
     - base >= 4.7 && < 5
     - random
     - array
-    - gloss
 
 executables:
   cabo-functional-fix-exe:
