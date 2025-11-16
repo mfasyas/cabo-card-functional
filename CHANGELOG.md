@@ -1,4 +1,4 @@
-# Changelog for `cabo-functional-fix`
+# Changelog for `test-scotty`
 
 All notable changes to this project will be documented in this file.
 

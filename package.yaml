@@ -1,6 +1,6 @@
-name:                cabo-functional-fix
+name:                test-scotty
 version:             0.1.0.0
-github:              "githubuser/cabo-functional-fix"
+github:              "githubuser/test-scotty"
 license:             BSD-3-Clause
 author:              "Author name here"
 maintainer:          "example@example.com"
@@ -17,21 +17,15 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/cabo-functional-fix#readme>
+description:         Please see the README on GitHub at <https://github.com/githubuser/test-scotty#readme>
 
 dependencies:
 - base >= 4.7 && < 5
-- random
-- array
-- mtl
-- gloss
 - scotty
 - text
-- mtl
-- gloss
-- transformers
-- aeson
-- containers
+- wai
+- wai-middleware-static
+- wai-extra
 
 ghc-options:
 - -Wall
@@ -46,20 +40,9 @@ ghc-options:
 
 library:
   source-dirs: src
-  exposed-modules:
-    - Card
-    - Player
-    - Actions
-
-  dependencies:
-    - base >= 4.7 && < 5
-    - random
-    - array
-    - gloss
-
 
 executables:
-  cabo-functional-fix-exe:
+  test-scotty-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -67,10 +50,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - cabo-functional-fix
+    - test-scotty
 
 tests:
-  cabo-functional-fix-test:
+  test-scotty-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -78,4 +61,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - cabo-functional-fix
+    - test-scotty

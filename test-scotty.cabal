@@ -4,11 +4,11 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 
-name:           cabo-functional-fix
+name:           test-scotty
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/cabo-functional-fix#readme>
-homepage:       https://github.com/githubuser/cabo-functional-fix#readme
-bug-reports:    https://github.com/githubuser/cabo-functional-fix/issues
+description:    Please see the README on GitHub at <https://github.com/githubuser/test-scotty#readme>
+homepage:       https://github.com/githubuser/test-scotty#readme
+bug-reports:    https://github.com/githubuser/test-scotty/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2025 Author name here
@@ -21,77 +21,62 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/cabo-functional-fix
+  location: https://github.com/githubuser/test-scotty
 
 library
   exposed-modules:
-      Card
-      Player
-      Actions
+      Lib
   other-modules:
-      View
-      Paths_cabo_functional_fix
+      Paths_test_scotty
   autogen-modules:
-      Paths_cabo_functional_fix
+      Paths_test_scotty
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      aeson
-    , array
-    , base >=4.7 && <5
-    , containers
-    , gloss
-    , mtl
-    , random
+      base >=4.7 && <5
     , scotty
     , text
-    , transformers
+    , wai
+    , wai-extra
+    , wai-middleware-static
   default-language: Haskell2010
 
-executable cabo-functional-fix-exe
+executable test-scotty-exe
   main-is: Main.hs
   other-modules:
-      Paths_cabo_functional_fix
+      Paths_test_scotty
   autogen-modules:
-      Paths_cabo_functional_fix
+      Paths_test_scotty
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
-    , array
-    , base >=4.7 && <5
-    , cabo-functional-fix
-    , containers
-    , gloss
-    , mtl
-    , random
+      base >=4.7 && <5
     , scotty
+    , test-scotty
     , text
-    , transformers
+    , wai
+    , wai-extra
+    , wai-middleware-static
   default-language: Haskell2010
 
-test-suite cabo-functional-fix-test
+test-suite test-scotty-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_cabo_functional_fix
+      Paths_test_scotty
   autogen-modules:
-      Paths_cabo_functional_fix
+      Paths_test_scotty
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
-    , array
-    , base >=4.7 && <5
-    , cabo-functional-fix
-    , containers
-    , gloss
-    , mtl
-    , random
+      base >=4.7 && <5
     , scotty
+    , test-scotty
     , text
-    , transformers
+    , wai
+    , wai-extra
+    , wai-middleware-static
   default-language: Haskell2010
