@@ -1,14 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 import Web.Scotty
-import Network.Wai.Middleware.Static
-import Data.Text.Lazy (Text)
 
-main :: IO ()
-main = scotty 3000 $ do
-
-    -- Serve folder static/
-    middleware $ staticPolicy (addBase "static")
-
-    -- Serve index.html
+main = scotty 9090 $ do
     get "/" $ file "static/index.html"
+    get "/assets/:file" $ do
+        f <- param "file"
+        file ("static/assets/" ++ f)
