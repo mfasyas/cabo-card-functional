@@ -1,131 +1,27 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use newtype instead of data" #-}
-{-# HLINT ignore "Use forM_" #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module Player where
 
-import Card
+import Card 
+import GHC.Generics (Generic)
+import Data.Aeson (ToJSON, FromJSON)
 
 data Player = Player 
-    {
-        playerId :: Int,
-        hand :: Hand
-    } deriving (Show, Eq)
-
-data Table = Table
-    { players :: [Player]
-    , drawDeck :: Deck
-    , discardPile :: Deck
-    , standings :: [(Int, Int)] -- (idPlayer, score)
-    } deriving (Eq)
+    { playerId :: Int
+    , hand :: Hand
+    , score :: Int
+    } deriving (Show, Generic, ToJSON, FromJSON)
 
 handScore :: Hand -> Int
-handScore (Hand hs) = sum (map cardValue hs)
+handScore (Hand hands) = sum (map cardValue hands)
 
-playerScore :: Player -> Int
-playerScore player = handScore (hand player) 
+updatePlayerScore :: Player -> Player
+updatePlayerScore player' = player' { score = handScore (hand player')}
 
-instance Ord Player where
-    compare p1 p2 =
-        case compare (playerScore p1) (playerScore p2) of
-            EQ -> compare (handSize p1) (handSize p2)
-            other -> other
-        where
-            handSize p = let Hand hs = hand p in length hs
+emptyHand :: Hand
+emptyHand = Hand []
 
-instance Show Table where
-    show table =
-        let [p1, p2] = players table
-            row = showRow p1 p2
-        in unlines
-            [ "========================================================================"
-            , "                                  Meja"
-            , "========================================================================"
-            , row
-            , "========================================================================"
-            , "Dek Buangan: " ++ showTop (discardPile table)
-            , "Dek tersisa: " ++ show (length (drawDeck table)) ++ " kartu"
-            , "========================================================================"
-            ]
-      where
-        showTop []    = "Kosong"
-        showTop (x:_) = showCardRS x
-
-        showPlayer :: Player -> String
-        showPlayer p =
-            let Hand hs = hand p
-                masked  = unwords (replicate (length hs) "[()]")
-            in "Pemain " ++ show (playerId p) ++ ": " ++ masked
-
-        showRow :: Player -> Player -> String
-        showRow left right = showPlayer left ++ replicate 6 ' ' ++ showPlayer right
-
--- =============================================================================
--- Player Functions
-
-dealToPlayer :: Card -> Player -> Player
-dealToPlayer card player =
-  let Hand hs = hand player
-  in player { hand = Hand (card : hs) }
-
--- Kombinasi deal dan discard
-playerDraw :: Deck -> Player -> (Player, Deck)
-playerDraw deck player =
-    let (drawnCard, newDeck) = drawCard deck
-        newPlayer = dealToPlayer drawnCard player
-    in (newPlayer, newDeck)
-
-dealOneCard :: ([Player], Deck) -> Player -> ([Player], Deck)
-dealOneCard (updatedPlayers, currentDeck) player =
-    let (newPlayer, newDeck) = playerDraw currentDeck player
-    in (newPlayer : updatedPlayers, newDeck)
-
-dealRound :: Table -> Table
-dealRound table =
-    let 
-        initialPlayer = players table
-        initialDeck = drawDeck table
-        (reversedNewPlayers, finalDeck) = foldl dealOneCard ([], initialDeck) initialPlayer
-        newPlayers = reverse reversedNewPlayers
-    in
-        table { players = newPlayers, drawDeck = finalDeck }
-
-deal4CardsToEachPlayer :: Table -> Table
-deal4CardsToEachPlayer table =
-    foldl (\currentTable _ -> dealRound currentTable) table [1..4]
-
--- =============================================================================
--- Persiapan player, maks 4 pemain
-player1 :: Player
-player1 = Player {
-    playerId = 1, 
-    hand = Hand []
-}
-
-player2 :: Player
-player2 = Player
-  { playerId = 2
-  , hand = Hand []
-  }
-
-player3 :: Player
-player3 = Player
-  { playerId = 3
-  , hand = Hand []
-  }
-
-player4 :: Player
-player4 = Player
-  { playerId = 4
-  , hand = Hand []
-  }
-
--- tetapkan 2 pemain untuk saat ini agar mudah dites
-table1 :: Table
-table1 = Table 
-    { players = [player1, player2]
-    , drawDeck = buildDeck
-    , discardPile = []
-    , standings = [(1,0), (2,0)]
-    }
--- =============================================================================
+makePlayer :: Int -> Player
+makePlayer pid = Player pid emptyHand 0
 

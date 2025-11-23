@@ -24,6 +24,7 @@ dependencies:
 - random
 - array
 - mtl
+- aeson
 
 ghc-options:
 - -Wall
@@ -41,7 +42,9 @@ library:
   exposed-modules:
     - Card
     - Player
-    - Actions
+    - GameStates
+    - GameRules
+    - GameEngine
 
   dependencies:
     - base >= 4.7 && < 5
@@ -61,7 +64,7 @@ executables:
 
 tests:
   cabo-functional-fix-test:
-    main:                Spec.hs
+    main:                TestMain.hs
     source-dirs:         test
     ghc-options:
     - -threaded

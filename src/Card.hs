@@ -1,29 +1,33 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+
 module Card where
 
-import Foreign (Storable(peek))
-import GHC.Base (build)
-import Data.List (intercalate)
-import System.Random (randomRIO)
-import Data.Array.IO (IOArray, newListArray, readArray, writeArray)
 import Control.Monad (forM)
+import Data.Aeson (ToJSON, FromJSON)
+import Data.Array.IO (IOArray, newListArray, readArray, writeArray)
+import Data.List (intercalate)
+import GHC.Generics (Generic)
+import System.Random (randomRIO)
 
 data Suit = Hearts | Diamonds | Clubs | Spades | Red | Black
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Joker
-  deriving (Show, Eq, Ord, Enum, Bounded)
+  deriving (Show, Eq, Ord, Enum, Bounded, Generic, ToJSON, FromJSON)
 
 data Powerup = Normal | PeekSelf | PeekOpponent | PeekSO | Switch | PeekSwitch | PeekDouble
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
-data Card = Card {rank :: Rank, suit:: Suit, powerup :: Powerup} deriving (Eq)
+data Card = Card {rank :: Rank, suit:: Suit, powerup :: Powerup} 
+  deriving (Eq, Generic, ToJSON, FromJSON)
 
 type Deck = [Card]
 
-newtype Hand = Hand [Card] deriving (Eq)
+newtype Hand = Hand [Card] deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
-instance Show Hand where
-    show (Hand hs) = "[" ++ intercalate ", " (map showCardRS hs) ++ "]"
+-- instance Show Hand where
+--     show (Hand hs) = "[" ++ intercalate ", " (map showCardRS hs) ++ "]"
 
 instance Show Card where
     show (Card r s _) = show r ++ " of " ++ show s
@@ -56,15 +60,23 @@ valueRules Joker Red         = -1
 valueRules Joker Black       = 15
 valueRules Jack _            = 11
 valueRules Queen _           = 11
-valueRules King s | s `elem` [Hearts, Diamonds] = 0
-valueRules King s | s `elem` [Clubs,  Spades]   = 12
+valueRules King Hearts       = 0
+valueRules King Diamonds     = 0
+valueRules King Clubs        = 12
+valueRules King Spades       = 12
 valueRules r _ = fromEnum r + 1 
+
+-- valueRules King s | s `elem` [Hearts, Diamonds] = 0
+-- valueRules King s | s `elem` [Clubs,  Spades]   = 12
 
 powerRules :: Rank -> Suit -> Powerup
 powerRules Joker Black      = PeekDouble
 powerRules Joker Red        = Normal
-powerRules King s | s `elem` [Clubs, Spades] = PeekSwitch
-powerRules King _           = Normal
+powerRules King Clubs       = PeekSwitch
+powerRules King Spades      = PeekSwitch
+-- powerRules King s | s `elem` [Clubs, Spades] = PeekSwitch
+powerRules King Diamonds    = Normal
+powerRules King Hearts      = Normal
 powerRules Jack _           = Switch
 powerRules Queen _          = Switch
 powerRules Seven _          = PeekSelf
@@ -93,7 +105,7 @@ buildDeck = standard ++ jokers
       ]
 
 showCardRS :: Card -> String
-showCardRS (Card r s _) = show r ++ " of " ++ show s -- to be deleted
+showCardRS (Card r s _) = show r ++ " of " ++ show s 
 
 drawCard :: Deck -> (Card, Deck)
 drawCard [] = error "Cannot draw from an empty deck!"
