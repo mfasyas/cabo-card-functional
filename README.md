@@ -10,13 +10,13 @@ The target of this project is to use the approach of functional programming in t
 ## Dependencies
 Project is build using [Stack](https://docs.haskellstack.org/en/stable/) with
 
-- **[scotty](https://hackage.haskell.org/package/scotty):** 
+- **[scotty](https://hackage.haskell.org/package/scotty)** 
 
 - **[wai-cors](https://hackage.haskell.org/package/wai-cors)** 
 
-- **[aeson](https://hackage.haskell.org/package/aeson):**
+- **[aeson](https://hackage.haskell.org/package/aeson)**
 
-- **[stm (Software Transactional Memory)](https://hackage.haskell.org/package/stm)
+- **[stm (Software Transactional Memory)](https://hackage.haskell.org/package/stm)**
 
 - **[mtl](https://hackage.haskell.org/package/mtl):**
 
@@ -45,7 +45,7 @@ More specifically you can see the file `package.yaml` in the repository for more
         stack run
         ```
 
-    For running test do
+    - For running tests do
 
         ```bash
         stack test
