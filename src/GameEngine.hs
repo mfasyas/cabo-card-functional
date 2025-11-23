@@ -21,7 +21,7 @@ applyAction gamestate _                     = gamestate
 logicDraw :: GameState -> GameState
 logicDraw gamestate =
     case drawDeck gamestate of
-        []       -> gamestate { phase = GameOver, logs = logs gamestate ++ ["Deck habis! Permainan Berakhir."] }
+        []          -> gamestate { phase = GameOver, logs = logs gamestate ++ ["Deck habis! Permainan Berakhir."] }
         (card:rest) -> 
             let 
                 player          = currentPlayer gamestate
@@ -46,10 +46,9 @@ logicDiscard gamestate idx =
         newPlayers          = replacePlayer (players gamestate) (currentTurn gamestate) newPlayer
         newPile             = card : (discardPile gamestate)
         
-        -- Cek Powerup Kartu yang dibuang
-        nextStateBase = gamestate { players = newPlayers, discardPile = newPile }
+        nextStateBase       = gamestate { players = newPlayers, discardPile = newPile }
         
-    in case powerup card of
+    in case (powerup card) of
         Normal     -> endTurn nextStateBase ("Membuang " ++ show card)
         powerType  -> nextStateBase 
             { phase = ResolvePowerup powerType
@@ -57,37 +56,33 @@ logicDiscard gamestate idx =
             }
 
 -- Logic Powerup (Sederhana: Peek Self)
-logicResolve :: GameState -> [Int] -> GameState
-logicResolve gamestate indices =
+logicResolve :: GameState -> (Int, Int) -> GameState
+logicResolve gamestate (pIndex1, pIndex2) =
     case phase gamestate of
-        ResolvePowerup powerType -> applyPowerupLogic gamestate powerType indices
-        _ -> gamestate -- Should not happen if Rules are correct
+        ResolvePowerup powerType -> applyPowerupLogic gamestate powerType (pIndex1, pIndex2)
+        _ -> gamestate 
 
-applyPowerupLogic :: GameState -> Powerup -> [Int] -> GameState
+applyPowerupLogic :: GameState -> Powerup -> (Int, Int) -> GameState
 
--- 1. PEEK SELF: Mengintip 1 kartu sendiri
--- Input: [myCardIndex]
-applyPowerupLogic gamestate PeekSelf [idx] =
+-- 1. PEEK SELF: Mengintip 1 kartu di tangan sendiri
+applyPowerupLogic gamestate PeekSelf (idx, _) =
     let 
         player      = currentPlayer gamestate
-        Hand hands  = hand player
-        card        = getCardAt (Hand hands) idx
-        msg         = "Hasil PeekSelf: " ++ showCardRS card
+        card        = getCardAt (hand player) idx
+        msg         = "Kartu: " ++ showCardRS card
     in (endTurn gamestate "Menggunakan PeekSelf") { privateInfo = [(playerId player, msg)] }
 
--- 2. PEEK OPPONENT: Mengintip 1 kartu lawan
--- Input: [opponentCardIndex]
-applyPowerupLogic gamestate PeekOpponent [idx] =
+-- 2. PEEK OPPONENT: Mengintip 1 kartu di tangan lawan
+applyPowerupLogic gamestate PeekOpponent (_, idx) =
     let 
         player      = currentPlayer gamestate
         opp         = getOpponent gamestate
         card        = getCardAt (hand opp) idx
-        msg         = "Hasil PeekOpponent (Kartu Lawan): " ++ showCardRS card
+        msg         = "Kartu lawan: " ++ showCardRS card
     in (endTurn gamestate "Menggunakan PeekOpponent") { privateInfo = [(playerId player, msg)] }
 
 -- 3. PEEK SO (Self & Opponent): Intip 1 punya sendiri, 1 punya lawan
--- Input: [myIdx, oppIdx]
-applyPowerupLogic gamestate PeekSO [myIdx, oppIdx] =
+applyPowerupLogic gamestate PeekSO (myIdx, oppIdx) =
     let 
         player      = currentPlayer gamestate
         opp         = getOpponent gamestate
@@ -96,44 +91,42 @@ applyPowerupLogic gamestate PeekSO [myIdx, oppIdx] =
         msg         = "PeekSO -> Saya: " ++ showCardRS myCard ++ " | Lawan: " ++ showCardRS oppCard
     in (endTurn gamestate "Menggunakan PeekSO") { privateInfo = [(playerId player, msg)] }
 
--- 4. SWITCH: Tukar kartu kita dengan lawan (Buta/Tanpa melihat)
--- Input: [myIdx, oppIdx]
-applyPowerupLogic gamestate Switch [myIdx, oppIdx] =
+-- 4. SWITCH: Tukar 1 kartu di tangan sendiri dengan kartu lawan.
+applyPowerupLogic gamestate Switch (myIdx, oppIdx) =
     let 
         newState = executeSwap gamestate myIdx oppIdx
     in endTurn newState "Melakukan SWITCH kartu dengan lawan"
 
 -- 5. PEEK SWITCH: Intip dulu, baru tukar
--- Input: [myIdx, oppIdx]
-applyPowerupLogic gamestate PeekSwitch [myIdx, oppIdx] =
+applyPowerupLogic gamestate PeekSwitch (myIdx, oppIdx) =
     let 
-        -- Intip dulu (logic sama kayak PeekSO)
         player      = currentPlayer gamestate
         opp         = getOpponent gamestate
         myCard      = getCardAt (hand player) myIdx
         oppCard     = getCardAt (hand opp) oppIdx
         msg         = "PeekSwitch (Sebelum Tukar) -> Saya: " ++ showCardRS myCard ++ " | Lawan: " ++ showCardRS oppCard
         
-        -- Lalu Tukar
         swappedState = executeSwap gamestate myIdx oppIdx
         
     in (endTurn swappedState "Melakukan Peek & Switch") { privateInfo = [(playerId player, msg)] }
 
--- 6. PEEK DOUBLE: Intip 2 kartu (Asumsi: 2 kartu lawan, atau bebas)
--- Input: [idx1, idx2] -> Kita asumsikan intip 2 kartu lawan sesuai deskripsi umum
-applyPowerupLogic gamestate PeekDouble [idx1, idx2] =
+-- 6. PEEK DOUBLE: Intip 2 kartu sendiri dan 2 kartu lawan
+-- Subject to change, index yang diintip sama. Perlu diupdate lagi nanti.
+applyPowerupLogic gamestate PeekDouble (idx1, idx2) =
     let 
         player      = currentPlayer gamestate
         opp         = getOpponent gamestate
         c1          = getCardAt (hand opp) idx1
         c2          = getCardAt (hand opp) idx2
-        msg         = "PeekDouble Lawan -> Kartu 1: " ++ showCardRS c1 ++ ", Kartu 2: " ++ showCardRS c2
+        c1own       = getCardAt (hand player) idx1
+        c2own       = getCardAt (hand player) idx2
+        msg         = "PeekDouble Lawan -> Kartu 1: " ++ showCardRS c1 ++ ", Kartu 2: " ++ showCardRS c2 ++ "| Sendiri -> Kartu 1:" ++ showCardRS c1own ++ ", Kartu 2: " ++ showCardRS c2own
     in (endTurn gamestate "Menggunakan PeekDouble") { privateInfo = [(playerId player, msg)] }
 
 -- Fallback jika input index ngaco
 applyPowerupLogic gamestate _ _ = endTurn gamestate "Gagal memproses Powerup (Invalid Input)"
 
--- Utilities
+-- Fungsi helper
 endTurn :: GameState -> String -> GameState
 endTurn gamestate reason =
     let nextPlayer = (currentTurn gamestate + 1) `mod` (length (players gamestate))
@@ -141,32 +134,29 @@ endTurn gamestate reason =
         { currentTurn = nextPlayer
         , phase = DrawPhase
         , logs = logs gamestate ++ [reason, "Giliran Pemain Berikutnya."]
-        , privateInfo = [] -- Reset info rahasia
+        , privateInfo = [] 
         }
 
+-- Memperbarui state pemain
 replacePlayer :: [Player] -> Int -> Player -> [Player]
 replacePlayer list idx newPlayer =
     let (before, _:after) = splitAt idx list
     in before ++ [newPlayer] ++ after
 
+-- Memisahkan kartu dari posisi tertentu
 removeAt :: Int -> [a] -> (a, [a])
-removeAt i xs = (xs !! i, take i xs ++ drop (i + 1) xs)
+removeAt idx hands = (hands !! idx, take idx hands ++ drop (idx + 1) hands)
 
--- === HELPER FUNCTIONS ===
-
--- Mengambil Object Lawan (Asumsi pemain berikutnya)
--- Subject to change
-getOpponent :: GameState -> Player
-getOpponent gs = 
-    let myPid = currentTurn gs
-        oppPid = (myPid + 1) `mod` length (players gs)
-    in (players gs) !! oppPid
-
--- Mengambil kartu aman dari Hand
+-- Mengambil kartu dari tangan
 getCardAt :: Hand -> Int -> Card
 getCardAt (Hand cards) idx 
     | idx >= 0 && idx < length cards = cards !! idx
     | otherwise = Card Joker Red Normal -- Fallback dummy jika error
+
+-- Utilitas umum list replacement
+replaceListIndex :: [a] -> Int -> a -> [a]
+replaceListIndex list idx newVal =
+    take idx list ++ [newVal] ++ drop (idx + 1) list
 
 -- Logika Tukar Kartu (Complex State Mutation)
 executeSwap :: GameState -> Int -> Int -> GameState
@@ -199,8 +189,3 @@ executeSwap gs myIdx oppIdx =
         psFinal = replaceListIndex ps1 oppIdxGlobal pOppNew
         
     in gs { players = psFinal }
-
--- Utilitas umum list replacement
-replaceListIndex :: [a] -> Int -> a -> [a]
-replaceListIndex list idx newVal =
-    take idx list ++ [newVal] ++ drop (idx + 1) list

@@ -5,7 +5,7 @@ import Text.Read (readMaybe)
 import Control.Monad (forever)
 
 -- Import modul-modul game kita
-import Card (shuffleDeck, buildDeck, Card(..), Rank(..), Suit(..), Hand(..))
+import Card (shuffleDeck, buildDeck, showCardRS, Card(..), Rank(..), Suit(..), Hand(..))
 import Player
 import GameStates
 import GameEngine (updateGame)
@@ -57,10 +57,18 @@ gameLoop state = do
 printState :: GameState -> IO ()
 printState gs = do
     putStrLn "\n=========================================="
-    putStrLn $ "Giliran: Pemain " ++ show (playerId (currentPlayer gs))
-    putStrLn $ "Fase   : " ++ show (phase gs)
+    putStrLn $ "Giliran         : Pemain " ++ show (playerId (currentPlayer gs))
+    putStrLn $ "Fase            : " ++ show (phase gs)
+
+    if (discardPile gs) == [] 
+        then putStrLn $ "Kartu terakhir  : "
+        else do 
+            let toppedCard = head (discardPile gs)
+
+            putStrLn $ "Kartu terakhir  : " ++ show toppedCard
     
     let (Hand myHand) = hand (currentPlayer gs)
+
     putStrLn "Kartu di Tangan:"
     mapM_ (\(i, c) -> putStrLn $ "  " ++ show i ++ ". " ++ show c) (zip [0..] myHand)
     
@@ -68,16 +76,16 @@ printState gs = do
     mapM_ (\l -> putStrLn $ "  > " ++ l) (take 3 $ reverse $ logs gs)
     
     case privateInfo gs of
-        [] -> return ()
-        info -> putStrLn $ "INFO RAHASIA: " ++ show info
+        []      -> return ()
+        info    -> putStrLn $ "INFO RAHASIA: " ++ show info
     putStrLn "=========================================="
 
 -- Parsing perintah text jadi Data Action
 parseInput :: Int -> String -> Maybe GameAction
 parseInput pid input = 
     case words input of
-        ["draw"]          -> Just (DrawAction pid)
-        ["discard", idx]  -> Just (DiscardAction pid (read idx))
-        ("target":idxs)   -> Just (TargetAction pid (map read idxs))
-        ["finish"]        -> Just (FinishGameAction pid)
-        _                 -> Nothing
+        ["draw"]                -> Just (DrawAction pid)
+        ["discard", idx]        -> Just (DiscardAction pid (read idx))
+        ["target", idx1, idx2]  -> Just (TargetAction pid (read idx1, read idx2))
+        ["finish"]              -> Just (FinishGameAction pid)
+        _                       -> Nothing

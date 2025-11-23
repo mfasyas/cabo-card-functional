@@ -6,7 +6,7 @@ import Card
 
 type Rule = GameState -> GameAction -> Either String ()
 
--- 1. Cek Giliran
+-- Turn Check, mengecek apa yang seharusnya terjadi.
 isPlayerTurn :: Rule
 isPlayerTurn gamestate action = 
     let player_id = case action of
@@ -19,7 +19,7 @@ isPlayerTurn gamestate action =
        then Right ()
        else Left "Bukan giliran Anda!"
 
--- 2. Cek Fase (PERBAIKAN: DrawPhase & DiscardPhase tidak pakai underscore '_')
+-- Phase Check, cek aksi apa yang seharusnya terjadi.
 isPhaseCorrect :: Rule
 isPhaseCorrect gamestate action =
     case (phase gamestate, action) of
@@ -29,11 +29,12 @@ isPhaseCorrect gamestate action =
         (GameOver, _)                         -> Left "Permainan Berakhir."
         _                                     -> Left "Aksi tidak valid di fase ini."
 
--- 3. Cek Index Kartu
+-- Index Check, mengecek keberadaan kartu di tangan suatu player.
 isValidIndex :: Rule
 isValidIndex gamestate (DiscardAction _ idx) = checkIndex gamestate idx
--- TargetAction membawa List [Int], jadi kita cek satu-satu pakai mapM_
-isValidIndex gamestate (TargetAction _ indices) = mapM_ (checkIndex gamestate) indices
+isValidIndex gamestate (TargetAction _ (playerIdx1, playerIdx2)) = do
+    checkIndex gamestate playerIdx1
+    checkOpponentIndex gamestate playerIdx2
 isValidIndex _ _ = Right ()
 
 checkIndex :: GameState -> Int -> Either String ()
@@ -43,32 +44,20 @@ checkIndex gamestate idx =
        then Right ()
        else Left $ "Index kartu " ++ show idx ++ " tidak valid."
 
--- 4. Cek Jumlah Target Powerup
-isTargetCountValid :: Rule
-isTargetCountValid gs (TargetAction _ indices) =
-    case phase gs of
-        ResolvePowerup p -> 
-            let required = requiredTargets p
-            in if length indices == required
-               then Right ()
-               else Left $ "Powerup ini butuh " ++ show required ++ " target, tapi menerima " ++ show (length indices)
-        _ -> Right () -- Skip jika bukan fase resolve
-isTargetCountValid _ _ = Right ()
-
--- Helper jumlah target
-requiredTargets :: Powerup -> Int
-requiredTargets PeekSelf     = 1
-requiredTargets PeekOpponent = 1
-requiredTargets PeekSO       = 2
-requiredTargets Switch       = 2
-requiredTargets PeekSwitch   = 2
-requiredTargets PeekDouble   = 2
-requiredTargets _            = 0
+checkOpponentIndex :: GameState -> Int -> Either String ()
+checkOpponentIndex gamestate idx =
+    let 
+        opp = getOpponent gamestate
+        (Hand h) = hand opp
+    in if idx >= 0 && idx < length h
+       then Right ()
+       else Left $ "Index kartu lawan " ++ show idx ++ " tidak valid."
 
 -- Combinator
 infixl 0 .&&.
 (.&&.) :: Rule -> Rule -> Rule
 (r1 .&&. r2) gamestate action = r1 gamestate action >> r2 gamestate action
 
+-- HAPUS isTargetCountValid dari sini
 gameRules :: Rule
-gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex .&&. isTargetCountValid
+gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex

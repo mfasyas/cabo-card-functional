@@ -1,150 +1,215 @@
+:root {
+    --bg-color: #2c3e50;
+    --table-color: #35654d;
+    --table-gradient: radial-gradient(circle at center, #35654d 0%, #1e3c2f 100%);
+    --card-width: 65px;
+    --card-height: 96px;
+    --card-radius: 6px;
+    --accent-color: #f1c40f;
+    --danger-color: #e74c3c;
+    --primary-color: #3498db;
+    --text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+}
+
 * { box-sizing: border-box; }
+
 body {
     margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #2c3e50; /* Warna background gelap */
+    font-family: 'Roboto', sans-serif;
+    background: #111;
     color: white;
     height: 100vh;
     overflow: hidden;
+    user-select: none;
 }
 
-/* LAYOUT MEJA */
+/* LAYOUT UTAMA */
 .game-table {
     display: flex;
     flex-direction: column;
     height: 100%;
-    justify-content: space-between;
-    background: radial-gradient(circle, #27ae60 0%, #1e8449 100%); /* Meja Hijau */
+    background: var(--table-gradient);
     padding: 10px;
-}
-
-.row {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-/* AREA KARTU */
-.hand-container {
-    display: flex;
-    gap: 8px;
-    padding: 10px;
-    min-height: 120px;
-    perspective: 1000px;
-}
-
-/* DESAIN KARTU */
-.card {
-    width: 70px;
-    height: 100px;
-    background: white;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    color: black;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    cursor: pointer;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-    transition: transform 0.2s, border 0.2s;
-    text-align: center;
     position: relative;
-    user-select: none;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
 }
 
-.card:hover { transform: translateY(-10px); }
-.card.selected { 
-    border: 4px solid #f1c40f; /* Kuning Highlight */
-    transform: translateY(-15px);
-    box-shadow: 0 0 15px #f1c40f;
+.row { display: flex; align-items: center; justify-content: center; width: 100%; }
+.top-row { height: 20%; flex-direction: column; justify-content: flex-start; padding-top: 10px; }
+.center-row { height: 35%; justify-content: space-between; padding: 0 10px; }
+.bottom-row { height: 45%; flex-direction: column; justify-content: flex-end; padding-bottom: 10px; }
+
+/* UTILITAS */
+.hidden { display: none !important; }
+.text-danger { color: var(--danger-color); }
+.highlight-text { color: var(--accent-color); font-weight: bold; }
+
+/* KARTU VISUAL */
+.card {
+    width: var(--card-width);
+    height: var(--card-height);
+    background-color: white;
+    border-radius: var(--card-radius);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
+    font-family: 'Rye', serif; /* Font gaya kartu klasik */
 }
 
+/* Warna Suit */
+.card.red { color: #d32f2f; }
+.card.black { color: #212121; }
+
+/* Simbol Besar di Tengah */
+.card .suit-center { font-size: 2rem; line-height: 1; }
+/* Angka di Pojok */
+.card .corner { position: absolute; font-size: 0.8rem; line-height: 1; display: flex; flex-direction: column; align-items: center;}
+.card .top-left { top: 4px; left: 4px; }
+.card .bottom-right { bottom: 4px; right: 4px; transform: rotate(180deg); }
+
+/* Bagian Belakang Kartu */
 .card.back, .deck-back {
     background: repeating-linear-gradient(
-        45deg, #c0392b, #c0392b 10px, #e74c3c 10px, #e74c3c 20px
+        45deg, #c0392b, #c0392b 5px, #b03a2e 5px, #b03a2e 10px
     );
-    color: transparent;
-    border: 2px solid white;
+    border: 2px solid #fff;
+}
+.card.back::after {
+    content: "⚜"; font-size: 2em; color: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center; height: 100%;
+}
+
+/* Interaksi Kartu */
+.active-hand .card:hover { transform: translateY(-15px) scale(1.05); z-index: 10; }
+.card.selected {
+    transform: translateY(-20px);
+    border: 3px solid var(--accent-color);
+    box-shadow: 0 0 15px var(--accent-color);
 }
 .card-placeholder {
-    width: 70px; height: 100px;
+    width: var(--card-width); height: var(--card-height);
     border: 2px dashed rgba(255,255,255,0.3);
+    border-radius: var(--card-radius);
     display: flex; align-items: center; justify-content: center;
-    color: rgba(255,255,255,0.5);
-    font-size: 12px;
+    color: rgba(255,255,255,0.5); font-size: 0.8rem; text-align: center;
 }
+
+/* AREA TANGAN */
+.hand-container {
+    display: flex; justify-content: center; gap: 5px;
+    padding: 10px; min-width: 200px;
+}
+.hand-container.compact .card { transform: scale(0.8); margin: 0 -10px; } /* Kartu lawan lebih rapat */
 
 /* AREA TENGAH */
-.center-row { flex-direction: row; gap: 40px; height: 150px; }
-.deck-area { display: flex; gap: 20px; }
-.status-board {
-    background: rgba(0,0,0,0.4);
-    padding: 10px;
-    border-radius: 8px;
-    width: 250px;
-    font-size: 0.9em;
-}
-#game-logs {
-    list-style: none; padding: 0; margin: 5px 0 0 0;
-    max-height: 60px; overflow-y: auto; font-size: 0.8em; color: #bdc3c7;
+.deck-area { display: flex; gap: 20px; align-items: center; }
+.deck-group { position: relative; }
+.deck-badge {
+    position: absolute; top: -10px; right: -10px;
+    background: var(--accent-color); color: #000;
+    font-weight: bold; padding: 2px 6px; border-radius: 10px;
+    font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
-/* PANEL KONTROL BAWAH */
-.control-panel {
-    width: 100%;
-    background: rgba(0,0,0,0.3);
+/* Glow Animation untuk Deck saat fase Draw */
+@keyframes glow { 0% { box-shadow: 0 0 5px white; } 50% { box-shadow: 0 0 20px yellow; } 100% { box-shadow: 0 0 5px white; } }
+.glow-effect { animation: glow 1.5s infinite; }
+
+/* STATUS PANEL */
+.status-panel {
+    background: rgba(0,0,0,0.4);
+    border-radius: 8px;
     padding: 10px;
+    width: 30%;
+    font-size: 0.85rem;
     display: flex;
     flex-direction: column;
-    align-items: center;
 }
-.instruction { margin-bottom: 10px; font-weight: bold; color: #f39c12; }
-button {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 4px;
-    background: #2980b9; color: white;
-    font-weight: bold; cursor: pointer;
-    font-size: 1em;
-}
-button:disabled { background: #7f8c8d; cursor: not-allowed; }
-button:active { transform: scale(0.95); }
+.phase-indicator { color: var(--accent-color); font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;}
+.log-list { list-style: none; padding: 0; margin: 0; max-height: 80px; overflow-y: auto; font-family: monospace; color: #ccc;}
+.log-list li { margin-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 
-/* OVERLAY (LAYAR PENUTUP) */
+/* CONTROLS */
+.control-bar {
+    width: 100%; display: flex; flex-direction: column; align-items: center;
+    background: rgba(0,0,0,0.6); padding: 10px; backdrop-filter: blur(5px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+.instruction { color: #fff; margin-bottom: 10px; font-weight: 500; text-shadow: var(--text-shadow); }
+.action-buttons { display: flex; gap: 10px; }
+
+button {
+    border: none; border-radius: 4px; padding: 10px 20px;
+    font-weight: bold; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+    transition: all 0.1s;
+}
+button:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
+button:disabled { background: #555; color: #888; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6; }
+
+.btn-action { background: var(--primary-color); color: white; min-width: 120px; }
+.btn-confirm { background: var(--accent-color); color: #2c3e50; }
+.btn-danger { background: var(--danger-color); color: white; }
+.btn-primary { background: #27ae60; color: white; font-size: 1.2rem; padding: 15px 30px; }
+.btn-secondary { background: #7f8c8d; color: white; }
+
+/* OVERLAYS */
 .overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: #2c3e50; z-index: 9999;
+    background: rgba(0,0,0,0.85); z-index: 999;
     display: flex; align-items: center; justify-content: center;
 }
-.overlay-box {
-    text-align: center;
-    background: rgba(255,255,255,0.1);
-    padding: 40px;
-    border-radius: 20px;
-    border: 2px solid white;
+.backdrop-blur { backdrop-filter: blur(8px); }
+.overlay-card {
+    background: #2c3e50; padding: 30px; border-radius: 12px;
+    text-align: center; border: 2px solid rgba(255,255,255,0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 90%;
 }
-.big-btn {
-    margin-top: 20px; background: #27ae60; font-size: 1.5em; padding: 20px 40px;
+.pulse-anim { animation: pulse 2s infinite; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+.player-badge-large {
+    font-size: 2rem; font-weight: bold; color: var(--accent-color);
+    margin: 20px 0; font-family: 'Rye', serif;
 }
 
-/* Deck count small badge */
-.deck-count {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 28px;
-    background: rgba(0,0,0,0.25);
-    border-radius: 6px;
-    color: white;
-    font-weight: bold;
-    margin-top: 36px;
+/* OTHER PLAYERS */
+.side-players { display: flex; flex-direction: column; gap: 10px; }
+.mini-player {
+    background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px;
+    font-size: 0.7rem; text-align: center; width: 60px;
+}
+.mini-cards-row { display: flex; justify-content: center; margin-top: 3px; }
+.mini-card-icon { width: 10px; height: 14px; background: white; margin: 1px; border-radius: 2px; }
+
+/* INFO MODAL CONTENT */
+.info-content {
+    background: rgba(0,0,0,0.2); padding: 15px; border-radius: 6px;
+    margin-bottom: 15px; font-size: 1.1em; line-height: 1.5; color: #ecf0f1;
 }
 
-.buttons button#btn-reset {
-    background: #c0392b;
-    margin-left: 8px;
+/* Pastikan urutan tumpukan (Stacking Order) */
+#turn-overlay { 
+    z-index: 1000; 
+}
+
+#game-over-overlay {
+    z-index: 3000;
+}
+
+#info-overlay { 
+    z-index: 2000; /* LEBIH TINGGI dari turn-overlay agar terlihat */
+}
+
+/* Tambahan styling agar modal terlihat jelas di atas background gelap turn */
+.info-card {
+    background: #2c3e50;
+    border: 2px solid #f1c40f; /* Border kuning biar menonjol */
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    min-width: 300px;
 }
