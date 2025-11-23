@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haskell Card Game - Hotseat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div id="turn-overlay" class="overlay">
+        <div class="overlay-box">
+            <h1>Giliran Berubah!</h1>
+            <p>Berikan perangkat ini kepada:</p>
+            <h2 id="next-player-name" style="color: yellow;">Pemain -</h2>
+            <button class="big-btn" onclick="confirmTurnStart()">SAYA SIAP BERMAIN</button>
+        </div>
+    </div>
+
+    <div id="game-over-overlay" class="overlay" style="display:none; background:rgba(0,0,0,0.9);">
+        <div class="overlay-box">
+            <h1 style="color:red">PERMAINAN SELESAI</h1>
+            <p id="winner-text">Deck Habis / Pemenang Ditentukan</p>
+            <button class="big-btn" onclick="resetGame()">MAIN ULANG</button>
+        </div>
+    </div>
+
+    <div class="game-table">
+        
+        <div class="row top-row">
+            <div class="player-info">
+                <span id="top-player-name">Lawan (Menunggu)</span>
+                <div class="score-badge" id="top-score">Score: 0</div>
+            </div>
+            <div class="hand-container" id="hand-top">
+                </div>
+        </div>
+
+        <div class="row center-row">
+            <div class="deck-area">
+                <div id="deck" class="card deck-back" onclick="actionDraw()">DECK</div>
+                <div id="deck-count" class="deck-count">0</div>
+                <div id="discard-pile" class="card-placeholder">Discard</div>
+            </div>
+            
+            <div class="status-board">
+                <div id="phase-display">Fase: -</div>
+                <div id="turn-display">Giliran: -</div>
+                <ul id="game-logs"></ul>
+            </div>
+        </div>
+
+        <div class="row bottom-row">
+            <div class="player-info">
+                <span id="bottom-player-name" style="color:#f1c40f; font-weight:bold;">ANDA (Pemain -)</span>
+                <div class="score-badge" id="bottom-score">Score: 0</div>
+            </div>
+            
+            <div class="hand-container" id="hand-bottom">
+                </div>
+
+            <div class="control-panel">
+                <div id="instruction-text" class="instruction">Menunggu giliran...</div>
+                
+                <div class="buttons">
+                    <button id="btn-draw" onclick="actionDraw()" disabled>AMBIL KARTU</button>
+                    <button id="btn-confirm" onclick="actionConfirmTarget()" style="display:none;">KONFIRMASI TARGET</button>
+                    <button id="btn-reset" onclick="resetGame()">RESET</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
