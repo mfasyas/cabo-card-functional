@@ -1,103 +1,91 @@
 module Main where
 
-import Data.List (find)
-import Control.Monad (forM_)
+import System.IO
 import Text.Read (readMaybe)
+import Control.Monad (forever)
 
-import Card
+-- Import modul-modul game kita
+import Card (shuffleDeck, buildDeck, showCardRS, Card(..), Rank(..), Suit(..), Hand(..))
 import Player
-import Actions
+import GameStates
+import GameEngine (updateGame)
 
 main :: IO ()
-main = gameLoop
-
--- Inisialisasi Permainan
-gameLoop :: IO ()
-gameLoop = do
-    putStrLn "=== Memulai Permainan ==="
+main = do
+    putStrLn "=== SIMULASI GAME ENGINE (STATE MACHINE) ==="
     
-    -- Buat dek kartu acak
-    shuffledDeck <- shuffleDeck buildDeck
-    -- assumsi pure sirna, coba dibuat seeded (?)
-    -- bisa dibuat ala-ala balatro
+    -- 1. Setup Deck & State Awal
+    deck <- shuffleDeck buildDeck
+    let state0 = initialState deck
     
-    let initialTable = table1 { drawDeck = shuffledDeck }
-        gameTable = deal4CardsToEachPlayer initialTable
+    -- 2. Masuk ke Loop Simulasi
+    gameLoop state0
+
+gameLoop :: GameState -> IO ()
+gameLoop state = do
+    printState state
     
-    putStrLn "\nInitial hands dealt:"
-    print gameTable
+    -- Cek Game Over
+    if phase state == GameOver
+        then putStrLn "!!! GAME OVER !!!"
+        else do
+            -- Minta Input User
+            putStr "\nPerintah (draw / discard <idx> / target <idx1> <idx2>): "
+            hFlush stdout
+            input <- getLine
+            
+            -- Parsing Input User ke GameAction
+            let pid = currentTurn state -- Otomatis pakai ID player yang sedang giliran (0 atau 1)
+            let action = parseInput pid input
+            
+            case action of
+                Nothing -> do
+                    putStrLn "Error: Perintah tidak dikenali."
+                    gameLoop state
+                Just act -> do
+                    -- === INI INTI TESTINGNYA ===
+                    -- Panggil Engine Update
+                    case updateGame state act of
+                        Left err -> do
+                            putStrLn $ "\n[!!!] ATURAN DILANGGAR: " ++ err
+                            gameLoop state -- Ulangi loop dengan state lama
+                        Right newState -> do
+                            putStrLn "\n[OK] Aksi berhasil."
+                            gameLoop newState -- Lanjut dengan state baru
+
+-- Fungsi Tampilan Sederhana
+printState :: GameState -> IO ()
+printState gs = do
+    putStrLn "\n=========================================="
+    putStrLn $ "Giliran         : Pemain " ++ show (playerId (currentPlayer gs))
+    putStrLn $ "Fase            : " ++ show (phase gs)
+
+    if (discardPile gs) == [] 
+        then putStrLn $ "Kartu terakhir  : "
+        else do 
+            let toppedCard = head (discardPile gs)
+
+            putStrLn $ "Kartu terakhir  : " ++ show toppedCard
     
-    peekCardPhase <- peekIt gameTable 0
-    peekCardPhase <- peekIt gameTable 1
-    -- peekCardPhase <- peekIt gameTable 2
-    -- peekCardPhase <- peekIt gameTable 3
-    -- to be fixed for random player, for now 2 player
+    let (Hand myHand) = hand (currentPlayer gs)
 
-    finalTable <- playRounds gameTable 0
-    putStrLn "\nPermainan Berakhir, skor saat ini:"
-    finalTable' <- showFinalScores finalTable
+    putStrLn "Kartu di Tangan:"
+    mapM_ (\(i, c) -> putStrLn $ "  " ++ show i ++ ". " ++ show c) (zip [0..] myHand)
     
-    -- Loop permainan
-    putStrLn "\nPlay again? (y/n)"
-    choice <- getLine
-    if choice == "y"
-        then gameLoop
-        else putStrLn "Goodbye!"
+    putStrLn "Logs Terakhir:"
+    mapM_ (\l -> putStrLn $ "  > " ++ l) (take 3 $ reverse $ logs gs)
+    
+    case privateInfo gs of
+        []      -> return ()
+        info    -> putStrLn $ "INFO RAHASIA: " ++ show info
+    putStrLn "=========================================="
 
-peekIt :: Table -> Int -> IO Table
-peekIt table currentPlayerIdx = do
-    let ps = players table
-        (before, p:after) = splitAt currentPlayerIdx ps
-        Hand hs = hand p
-        n = length hs
-
-    putStrLn $ "\nPemain " ++ show (playerId p) ++ ", pilih dua kartu untuk diintip (1-" ++ show n ++ ")"
-    mapM_ (\i -> putStrLn $ show i ++ ". [??]") [1..n]
-
-    putStrLn "Masukkan pilihan kartu (contoh 1 3):"
-    input <- words <$> getLine
-
-    case mapM readMaybe input of
-      Just [a,b]
-        | a /= b && a >= 1 && a <= n && b >= 1 && b <= n -> do
-            let showCardAt i = showCardRS (hs !! (i-1))
-            putStrLn "Kartu yang diintip sesuai urutan di tangan: "
-            putStrLn $ " - " ++ showCardAt a
-            putStrLn $ " - " ++ showCardAt b
-            return table
-      _ -> do
-          putStrLn "Salah mas, masukkan sesuai tangan dan sesuai format (e.g. 1 3)."
-          peekIt table currentPlayerIdx
-
--- Main game round loop
-playRounds :: Table -> Int -> IO Table
-playRounds table currentPlayerIdx
-    | null (drawDeck table) = do
-        putStrLn "\nKartu di dek habis! Permainan berakhir!"
-        return table
-    | otherwise = do
-        print table
-        let numPlayers = length $ players table
-        
-        -- Eksekusi giliran pemain
-        newTable <- playerTurn table currentPlayerIdx
-        
-        -- Set indeks pada pemain berikutnya
-        let nextPlayerIdx = (currentPlayerIdx + 1) `mod` numPlayers
-        playRounds newTable nextPlayerIdx
-
--- Skor akhir masing-masing pemain
-showFinalScores :: Table -> IO Table
-showFinalScores table = do
-    forM_ (players table) $ \p -> do
-        let score = playerScore p
-            Hand hs = hand p
-        putStrLn $ "Skor setiap pemain " ++ show (playerId p) ++ ": " ++ show score ++ " poin dengan (" ++ show (length hs) ++ " kartu)"
-
-    let ranked = rankPlayers table
-        winner = head ranked
-    putStrLn $ "\nPemenang: Pemain " ++ show (playerId winner)
-
-    let updatedTable = updateStandings table
-    showStandings updatedTable
-    return updatedTable
+-- Parsing perintah text jadi Data Action
+parseInput :: Int -> String -> Maybe GameAction
+parseInput pid input = 
+    case words input of
+        ["draw"]                -> Just (DrawAction pid)
+        ["discard", idx]        -> Just (DiscardAction pid (read idx))
+        ["target", idx1, idx2]  -> Just (TargetAction pid (read idx1, read idx2))
+        ["finish"]              -> Just (FinishGameAction pid)
+        _                       -> Nothing
