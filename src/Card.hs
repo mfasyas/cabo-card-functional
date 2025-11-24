@@ -1,7 +1,7 @@
 module Card where
 
-import Foreign (Storable(peek))
-import GHC.Base (build)
+-- import Foreign (Storable(peek))
+-- import GHC.Base (build)
 import Data.List (intercalate)
 import System.Random (randomRIO)
 import Data.Array.IO (IOArray, newListArray, readArray, writeArray)

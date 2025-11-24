@@ -1,7 +1,6 @@
 module Powerups where
 
 import Text.Read (readMaybe)
-
 import Card
 import Player
 
@@ -64,10 +63,26 @@ peekOpponent :: Table -> Int -> IO Table
 peekOpponent table playerIdx = do
     let ps         = players table
         numPlayers = length ps
-        me         = ps !! playerIdx
-        -- sementara: target = pemain berikutnya
-        targetIdx  = (playerIdx + 1) `mod` numPlayers
-        target     = ps !! targetIdx
+        -- me         = ps !! playerIdx
+
+    putStrLn "\n[Powerup PeekSO] Intip satu kartu sendiri dan satu kartu lawan."
+
+    let askTarget = do
+            putStr "Masukkan nomor urut pemain target: "
+            inputStr <- getLine
+
+            let choice = read inputStr :: Int 
+            let idx = choice - 1 -- Konversi ke index 0-based
+
+            if idx >= 0 && idx < numPlayers && idx /= playerIdx
+                then return idx
+                else do
+                    putStrLn "Pilihan tidak valid (tidak boleh diri sendiri/di luar daftar)."
+                    askTarget 
+
+    targetIdx <- askTarget
+    
+    let target     = ps !! targetIdx
         Hand hsOpp = hand target
         n          = length hsOpp
 
@@ -76,13 +91,14 @@ peekOpponent table playerIdx = do
         putStrLn "Lawan tidak punya kartu untuk diintip."
         return table
       else do
-        putStrLn $ "\n[Powerup PeekOpponent] Pemain " ++ show (playerId me)
-                ++ " mengintip kartu pemain " ++ show (playerId target)
+        putStrLn $ "\nAnda mengintip kartu milik " ++ show (playerId target)
+        -- Tampilkan slot kartu tertutup (1..n)
         mapM_ (\i -> putStrLn $ show i ++ ". [??]") [1..n]
 
-        idx <- promptIndex n
+        idx <- promptIndex n -- Menggunakan promptIndex yang sudah Anda miliki
         let chosen = hsOpp !! (idx - 1)
         putStrLn $ "Kartu lawan di posisi " ++ show idx ++ " adalah: " ++ showCardRS chosen
+        
         return table
 
 peekSO :: Table -> Int -> IO Table
@@ -105,8 +121,27 @@ swapBetween i j xs ys =
 switchWithOpponent :: Table -> Int -> IO Table
 switchWithOpponent table playerIdx = do
     let ps          = players table
+        numPlayers = length ps
         me          = ps !! playerIdx
-        oppIdx      = opponentIndex table playerIdx
+
+    putStrLn "\n[Powerup Switch] Intip satu kartu sendiri dan satu kartu lawan."
+
+    let askTarget = do
+            putStr "Masukkan nomor urut pemain target: "
+            inputStr <- getLine
+
+            let choice = read inputStr :: Int 
+            let idx = choice - 1 -- Konversi ke index 0-based
+
+            if idx >= 0 && idx < numPlayers && idx /= playerIdx
+                then return idx
+                else do
+                    putStrLn "Pilihan tidak valid (tidak boleh diri sendiri/di luar daftar)."
+                    askTarget 
+
+    oppIdx <- askTarget
+    
+    let
         opponent    = ps !! oppIdx
         Hand myHs   = hand me
         Hand oppHs  = hand opponent
@@ -153,6 +188,7 @@ peekSwitch table playerIdx = do
     _ <- peekOpponent table playerIdx
 
     tablePeekSwitch <- switchWithOpponent table playerIdx
+    -- switching tidak harus sama dengan opponent yang diintip
 
     return tablePeekSwitch
 
@@ -169,5 +205,5 @@ runPowerupOnTopDiscard table playerIdx =
           Switch       -> switchWithOpponent table playerIdx
           PeekDouble   -> peekDouble table playerIdx
           PeekSwitch   -> peekSwitch table playerIdx
-          _            -> return table   -- kartu tanpa / belum ada powerup
+          _            -> return table
 

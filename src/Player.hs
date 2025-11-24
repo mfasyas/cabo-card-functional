@@ -1,6 +1,3 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use newtype instead of data" #-}
-{-# HLINT ignore "Use forM_" #-}
 module Player where
 
 import Card
@@ -34,13 +31,16 @@ instance Ord Player where
 
 instance Show Table where
     show table =
-        let [p1, p2] = players table
-            row = showRow p1 p2
+        let [p1, p2, p3, p4] = players table
+            row1 = showRow p1 p2
+            row2 = showRow p3 p4
         in unlines
             [ "========================================================================"
             , "                                  Meja"
             , "========================================================================"
-            , row
+            , row1
+            , ""
+            , row2
             , "========================================================================"
             , "Dek Buangan: " ++ showTop (discardPile table)
             , "Dek tersisa: " ++ show (length (drawDeck table)) ++ " kartu"
@@ -91,7 +91,7 @@ dealRound table =
 
 deal4CardsToEachPlayer :: Table -> Table
 deal4CardsToEachPlayer table =
-    foldl (\currentTable _ -> dealRound currentTable) table [1..4]
+    foldl (\currentTable _ -> dealRound currentTable) table ([1 .. 4] :: [Int])
 
 -- =============================================================================
 -- Persiapan player, maks 4 pemain
@@ -119,13 +119,13 @@ player4 = Player
   , hand = Hand []
   }
 
--- tetapkan 2 pemain untuk saat ini agar mudah dites
-table1 :: Table
-table1 = Table 
-    { players = [player1, player2]
+-- tetapkan 4 pemain untuk saat ini agar mudah dites
+initialTable' :: Table
+initialTable' = Table 
+    { players = [player1, player2, player3, player4]
     , drawDeck = buildDeck
     , discardPile = []
-    , standings = [(1,0), (2,0)]
+    , standings = [(1,0), (2,0), (3,0), (4,0)]
     }
 -- =============================================================================
 

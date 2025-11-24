@@ -1,6 +1,6 @@
 module Main where
 
-import Data.List (find)
+-- import Data.List (find)
 import Control.Monad (forM_)
 import Text.Read (readMaybe)
 
@@ -18,24 +18,23 @@ gameLoop = do
     
     -- Buat dek kartu acak
     shuffledDeck <- shuffleDeck buildDeck
-    -- assumsi pure sirna, coba dibuat seeded (?)
-    -- bisa dibuat ala-ala balatro
+    -- assumsi pure sirna tapi ketidakrandoman akan menyebabkan
+    -- permainan menjadi mudah ditebak
     
-    let initialTable = table1 { drawDeck = shuffledDeck }
+    let initialTable = initialTable' { drawDeck = shuffledDeck }
         gameTable = deal4CardsToEachPlayer initialTable
     
     putStrLn "\nInitial hands dealt:"
     print gameTable
     
-    peekCardPhase <- peekIt gameTable 0
-    peekCardPhase <- peekIt gameTable 1
-    -- peekCardPhase <- peekIt gameTable 2
-    -- peekCardPhase <- peekIt gameTable 3
-    -- to be fixed for random player, for now 2 player
+    _ <- peekIt gameTable 0
+    _ <- peekIt gameTable 1
+    _ <- peekIt gameTable 2
+    _ <- peekIt gameTable 3
 
     finalTable <- playRounds gameTable 0
     putStrLn "\nPermainan Berakhir, skor saat ini:"
-    finalTable' <- showFinalScores finalTable
+    _ <- showFinalScores finalTable
     
     -- Loop permainan
     putStrLn "\nPlay again? (y/n)"
@@ -47,7 +46,7 @@ gameLoop = do
 peekIt :: Table -> Int -> IO Table
 peekIt table currentPlayerIdx = do
     let ps = players table
-        (before, p:after) = splitAt currentPlayerIdx ps
+        (_, p:_) = splitAt currentPlayerIdx ps
         Hand hs = hand p
         n = length hs
 
