@@ -73,6 +73,7 @@ test-suite cabo-functional-fix-test
   type: exitcode-stdio-1.0
   main-is: TestMain.hs
   other-modules:
+      Spec
       Paths_cabo_functional_fix
   autogen-modules:
       Paths_cabo_functional_fix
