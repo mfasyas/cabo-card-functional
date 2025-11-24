@@ -8,7 +8,7 @@ As per November 24th, 2025 thisproject has not yet been completed.
 The target of this project is to use the approach of functional programming in to the game as much as possible. The program's backend is written in [Haskell](https://img.shields.io/badge/Built_with-Haskell-purple) with [Frontend](https://img.shields.io/badge/Frontend-HTML%2FCSS%2FJS-orange) as the main tool for frontend.
 
 ## Dependencies
-Project is build using [Stack](https://docs.haskellstack.org/en/stable/) with
+Project is built using [Stack](https://docs.haskellstack.org/en/stable/) with
 
 - **[scotty](https://hackage.haskell.org/package/scotty)** 
 
@@ -18,7 +18,7 @@ Project is build using [Stack](https://docs.haskellstack.org/en/stable/) with
 
 - **[stm (Software Transactional Memory)](https://hackage.haskell.org/package/stm)**
 
-- **[mtl](https://hackage.haskell.org/package/mtl):**
+- **[mtl](https://hackage.haskell.org/package/mtl)**
 
 More specifically you can see the file `package.yaml` in the repository for more information
 
