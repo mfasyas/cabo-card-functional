@@ -43,6 +43,9 @@ library
     , base >=4.7 && <5
     , mtl
     , random
+    , scotty
+    , stm
+    , wai-cors
   default-language: Haskell2010
 
 executable cabo-functional-fix-exe
@@ -61,6 +64,9 @@ executable cabo-functional-fix-exe
     , cabo-functional-fix
     , mtl
     , random
+    , scotty
+    , stm
+    , wai-cors
   default-language: Haskell2010
 
 test-suite cabo-functional-fix-test
@@ -80,4 +86,7 @@ test-suite cabo-functional-fix-test
     , cabo-functional-fix
     , mtl
     , random
+    , scotty
+    , stm
+    , wai-cors
   default-language: Haskell2010

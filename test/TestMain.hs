@@ -1,83 +1,131 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
-import System.IO
-import Text.Read (readMaybe)
-import Control.Monad (forever)
+import Web.Scotty
+import Data.Aeson (ToJSON, FromJSON, object, (.=))
+import qualified Data.Aeson as A
+import Network.Wai.Middleware.Cors (simpleCors)
+import Control.Monad.IO.Class (liftIO)
+import Control.Concurrent.STM
+import System.Random (newStdGen)
 
--- Import modul-modul game kita
-import Card (shuffleDeck, buildDeck, Card(..), Rank(..), Suit(..), Hand(..))
-import Player
+-- Import modul game Anda
+import Card (shuffleDeck, buildDeck)
 import GameStates
 import GameEngine (updateGame)
+import Player (Player(..))
+
+-- Wrapper untuk menerima JSON: { "tag": "...", "contents": ... }
+data TaggedAction = TaggedAction { tag :: String, contents :: A.Value } 
+    deriving (Show)
+
+instance FromJSON TaggedAction where
+    parseJSON = A.withObject "TaggedAction" $ \v -> TaggedAction
+        <$> v A..: "tag"
+        <*> v A..: "contents"
 
 main :: IO ()
 main = do
-    putStrLn "=== SIMULASI GAME ENGINE (STATE MACHINE) ==="
-    
-    -- 1. Setup Deck & State Awal
+    -- 1. Setup Awal: Shuffle Deck & State
     deck <- shuffleDeck buildDeck
     let state0 = initialState deck
     
-    -- 2. Masuk ke Loop Simulasi
-    gameLoop state0
+    -- Variable Global (Thread Safe)
+    stateVar <- newTVarIO state0
 
-gameLoop :: GameState -> IO ()
-gameLoop state = do
-    printState state
-    
-    -- Cek Game Over
-    if phase state == GameOver
-        then putStrLn "!!! GAME OVER !!!"
-        else do
-            -- Minta Input User
-            putStr "\nPerintah (draw / discard <idx> / target <idx1> <idx2>): "
-            hFlush stdout
-            input <- getLine
+    putStrLn "============================================="
+    putStrLn "  SERVER CARD GAME BERJALAN (PORT 3000)      "
+    putStrLn "  Buka browser: http://localhost:3000        "
+    putStrLn "============================================="
+
+    scotty 3000 $ do
+        -- Middleware agar JS bisa akses tanpa error CORS
+        middleware simpleCors 
+
+        -- RUTE STATIS (HTML/CSS/JS)
+        get "/" $ do
+            setHeader "Content-Type" "text/html"
+            file "index.html"
+
+        get "/styles.css" $ do
+            setHeader "Content-Type" "text/css"
+            file "styles.css"
+
+        get "/script.js" $ do
+            setHeader "Content-Type" "application/javascript"
+            file "script.js"
+
+        -- RUTE API: AMBIL STATE GAME
+        get "/game/state" $ do
+            currentState <- liftIO $ readTVarIO stateVar
+            json currentState
+
+        -- RUTE API: RESET GAME
+        post "/game/reset" $ do
+            liftIO $ putStrLn "[INFO] Game Reset Requested"
+            newDeck <- liftIO $ shuffleDeck buildDeck
+            let newState = initialState newDeck
+            liftIO $ atomically $ writeTVar stateVar newState
+            json newState
+
+        -- RUTE API: TERIMA AKSI (LOGIC UTAMA)
+        post "/game/action" $ do
+            tagged <- jsonData :: ActionM TaggedAction
             
-            -- Parsing Input User ke GameAction
-            let pid = currentTurn state -- Otomatis pakai ID player yang sedang giliran (0 atau 1)
-            let action = parseInput pid input
+            -- Debugging: Print aksi ke terminal
+            liftIO $ putStrLn $ "[ACTION] Menerima: " ++ show tagged
+
+            currentState <- liftIO $ readTVarIO stateVar
             
-            case action of
-                Nothing -> do
-                    putStrLn "Error: Perintah tidak dikenali."
-                    gameLoop state
-                Just act -> do
-                    -- === INI INTI TESTINGNYA ===
-                    -- Panggil Engine Update
-                    case updateGame state act of
-                        Left err -> do
-                            putStrLn $ "\n[!!!] ATURAN DILANGGAR: " ++ err
-                            gameLoop state -- Ulangi loop dengan state lama
+            -- Parsing JSON ke GameAction Haskell
+            let actionOrError = parseAction tagged
+
+            case actionOrError of
+                Left err -> do
+                    liftIO $ putStrLn $ "[ERROR] Parsing Gagal: " ++ err
+                    json $ object ["error" .= err]
+                
+                Right gameAct -> do
+                    -- Jalankan Update Logic (GameEngine.hs)
+                    case updateGame currentState gameAct of
+                        Left logicErr -> do
+                            liftIO $ putStrLn $ "[LOGIC FAIL] " ++ logicErr
+                            json $ object ["error" .= logicErr]
+                        
                         Right newState -> do
-                            putStrLn "\n[OK] Aksi berhasil."
-                            gameLoop newState -- Lanjut dengan state baru
+                            liftIO $ atomically $ writeTVar stateVar newState
+                            liftIO $ putStrLn "[SUCCESS] State Updated"
+                            json newState
 
--- Fungsi Tampilan Sederhana
-printState :: GameState -> IO ()
-printState gs = do
-    putStrLn "\n=========================================="
-    putStrLn $ "Giliran: Pemain " ++ show (playerId (currentPlayer gs))
-    putStrLn $ "Fase   : " ++ show (phase gs)
+-- Fungsi Helper Parsing yang Lebih Aman
+parseAction :: TaggedAction -> Either String GameAction
+parseAction (TaggedAction t c) = case t of
     
-    let (Hand myHand) = hand (currentPlayer gs)
-    putStrLn "Kartu di Tangan:"
-    mapM_ (\(i, c) -> putStrLn $ "  " ++ show i ++ ". " ++ show c) (zip [0..] myHand)
-    
-    putStrLn "Logs Terakhir:"
-    mapM_ (\l -> putStrLn $ "  > " ++ l) (take 3 $ reverse $ logs gs)
-    
-    case privateInfo gs of
-        [] -> return ()
-        info -> putStrLn $ "INFO RAHASIA: " ++ show info
-    putStrLn "=========================================="
+    "DrawAction" -> 
+        case A.fromJSON c :: A.Result Int of
+            A.Success pid -> Right (DrawAction pid)
+            _             -> Left "Format DrawAction salah (harus integer PID)"
 
--- Parsing perintah text jadi Data Action
-parseInput :: Int -> String -> Maybe GameAction
-parseInput pid input = 
-    case words input of
-        ["draw"]          -> Just (DrawAction pid)
-        ["discard", idx]  -> Just (DiscardAction pid (read idx))
-        ("target":idxs)   -> Just (TargetAction pid (map read idxs))
-        ["finish"]        -> Just (FinishGameAction pid)
-        _                 -> Nothing
+    "DiscardAction" -> 
+        case A.fromJSON c :: A.Result [Int] of
+            -- JS mengirim [pid, cardIndex]
+            A.Success [pid, idx] -> Right (DiscardAction pid idx)
+            _                    -> Left "Format DiscardAction salah (harus [pid, idx])"
+
+    "TargetAction" -> 
+        -- JS mengirim [pid, [idx1, idx2...]] -> Tuple (Int, [Int]) di Haskell
+        case A.fromJSON c :: A.Result (Int, [Int]) of
+            A.Success (pid, indices) -> 
+                case indices of
+                    []       -> Left "TargetAction kosong! Pilih minimal 1 kartu."
+                    [i]      -> Right (TargetAction pid (i, i))      -- Jika cuma 1, duplikat (untuk single target)
+                    (i1:i2:_) -> Right (TargetAction pid (i1, i2))   -- Jika 2, ambil keduanya
+            _ -> Left "Format TargetAction salah (harus [pid, [indices]])"
+
+    "FinishGameAction" ->
+        case A.fromJSON c :: A.Result Int of
+            A.Success pid -> Right (FinishGameAction pid)
+            _             -> Left "Format FinishGameAction salah"
+
+    _ -> Left $ "Action Tag tidak dikenali: " ++ t

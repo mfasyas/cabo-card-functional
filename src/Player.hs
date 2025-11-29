@@ -24,4 +24,3 @@ emptyHand = Hand []
 
 makePlayer :: Int -> Player
 makePlayer pid = Player pid emptyHand 0
-

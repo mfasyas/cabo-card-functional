@@ -4,144 +4,243 @@ import GameStates
 import GameRules
 import Card
 import Player
-
-import Data.List (splitAt)
+import Data.List (sortBy, splitAt)
+import Data.Function (on)
 
 updateGame :: GameState -> GameAction -> Either String GameState
 updateGame gamestate action = do
-    gameRules gamestate action            -- Rule Check
-    return (applyAction gamestate action) -- Aplikasikan logic
+    gameRules gamestate action            
+    return (applyAction gamestate action)
 
 applyAction :: GameState -> GameAction -> GameState
-applyAction gamestate (DrawAction _)        = logicDraw gamestate
-applyAction gamestate (DiscardAction _ idx) = logicDiscard gamestate idx
-applyAction gamestate (TargetAction _ idx)  = logicResolve gamestate idx
-applyAction gamestate _                     = gamestate
+applyAction gs (DrawAction _)          = logicDraw gs
+applyAction gs (DiscardAction _ idx)   = logicDiscard gs idx
+applyAction gs (KabulAction pid)       = logicKabul gs pid
+applyAction gs (TimpaAction pid idx)   = logicTimpa gs pid idx
+applyAction gs (PassTimpaAction _)     = logicPassTimpa gs
+applyAction gs (SkipPowerupAction _)   = endTurn gs "Powerup di-skip."
+applyAction gs (TargetAction _ idx)    = logicResolve gs idx
 
+-- ================= LOGIC DRAW =================
 logicDraw :: GameState -> GameState
-logicDraw gamestate =
-    case drawDeck gamestate of
-        []       -> gamestate { phase = GameOver, logs = logs gamestate ++ ["Deck habis! Permainan Berakhir."] }
+logicDraw gs =
+    case drawDeck gs of
+        [] -> gs { phase = GameOver, logs = logs gs ++ ["Deck habis! Permainan Berakhir."] }
         (card:rest) -> 
             let 
-                player          = currentPlayer gamestate
-                (Hand oldHand)  = hand player
-                newHand         = Hand (card : oldHand)
-                newPlayer       = player { hand = newHand }
-                newPlayers      = replacePlayer (players gamestate) (currentTurn gamestate) newPlayer
-            in gamestate 
-                { drawDeck = rest
-                , players  = newPlayers
-                , phase    = DiscardPhase
-                , logs     = logs gamestate ++ ["Pemain " ++ show (playerId player) ++ " mengambil kartu."]
-                }
+                p = currentPlayer gs
+                (Hand oldH) = hand p
+                newP = p { hand = Hand (card : oldH) }
+                newPs = replacePlayer (players gs) (currentTurn gs) newP
+            in gs { drawDeck = rest, players = newPs, phase = DiscardPhase, logs = logs gs ++ ["Mengambil kartu."] }
 
+-- ================= LOGIC DISCARD & TIMPA TRIGGER =================
 logicDiscard :: GameState -> Int -> GameState
-logicDiscard gamestate idx =
+logicDiscard gs idx =
     let 
-        player              = currentPlayer gamestate
-        (Hand hands)        = hand player
-        (card, newHand)     = removeAt idx hands
-        newPlayer           = player { hand = Hand newHand }
-        newPlayers          = replacePlayer (players gamestate) (currentTurn gamestate) newPlayer
-        newPile             = card : (discardPile gamestate)
+        p = currentPlayer gs
+        (Hand hands) = hand p
+        (card, newHandList) = removeAt idx hands
+        newP = p { hand = Hand newHandList }
+        newPs = replacePlayer (players gs) (currentTurn gs) newP
+        newPile = card : (discardPile gs)
         
-        -- Cek Powerup Kartu yang dibuang
-        nextStateBase = gamestate { players = newPlayers, discardPile = newPile }
+        -- State dasar setelah discard (belum ganti giliran)
+        baseState = gs { players = newPs, discardPile = newPile }
         
-    in case powerup card of
-        Normal     -> endTurn nextStateBase ("Membuang " ++ show card)
-        powerType  -> nextStateBase 
-            { phase = ResolvePowerup powerType
-            , logs = logs gamestate ++ ["Powerup " ++ show powerType ++ " aktif! Pilih target."]
+        -- Persiapan masuk Fase Timpa
+        -- Mulai tanya dari pemain yang membuang kartu (Fitur 4)
+        pUp = powerup card
+        nextPhase = TimpaPhase 
+            { targetRank = rank card
+            , originIdx = currentTurn gs
+            , askingIdx = currentTurn gs 
+            , savedPowerup = pUp
+            }
+            
+    in baseState 
+        { phase = nextPhase
+        , logs = logs gs ++ ["Membuang " ++ show card ++ ". Cek Timpa..."]
+        }
+
+-- ================= LOGIC TIMPA =================
+-- Jika pemain memilih "Timpa" (meletakkan kartu rank sama)
+logicTimpa :: GameState -> Int -> Int -> GameState
+logicTimpa gs pid idx =
+    let
+        targetP = (players gs) !! pid
+        (Hand h) = hand targetP
+        card = h !! idx
+    in if rank card /= targetRank (unwrapTimpaPhase (phase gs))
+       then gs -- Harusnya dicek di Rules, tapi fail-safe: abaikan jika rank beda
+       else 
+           let
+                -- Buang kartu timpa
+               (discarded, newH) = removeAt idx h
+               newP = targetP { hand = Hand newH }
+               newPs = replacePlayer (players gs) pid newP
+               newPile = discarded : (discardPile gs)
+               
+               msg = "Pemain " ++ show pid ++ " melakukan TIMPA dengan " ++ show discarded
+               
+               -- "Fase timpa sudah selesai" -> Lanjut ke logika kartu ORIGINAL.
+               -- Kartu timpa tidak trigger powerup (Fitur 4).
+               -- Powerup original tetap berlaku (disimpan di savedPowerup)
+               savedP = savedPowerup (unwrapTimpaPhase (phase gs))
+           in processPostTimpa (gs { players = newPs, discardPile = newPile }) savedP msg
+
+unwrapTimpaPhase :: GamePhase -> GamePhase
+unwrapTimpaPhase p = p -- Helper safe cast
+
+-- Jika pemain Pass saat ditanya Timpa
+logicPassTimpa :: GameState -> GameState
+logicPassTimpa gs =
+    case phase gs of
+        TimpaPhase r origin asking savedP ->
+            let 
+                totalP = length (players gs)
+                nextAsking = (asking + 1) `mod` totalP
+            in if nextAsking == origin 
+               -- Jika sudah memutar balik ke pembuang awal -> Fase Timpa Selesai, tidak ada yang timpa.
+               then processPostTimpa gs savedP "Fase Timpa Selesai (Tidak ada yang menimpa)."
+               -- Tanya pemain berikutnya
+               else gs { phase = TimpaPhase r origin nextAsking savedP }
+        _ -> gs
+
+-- Helper transisi setelah Fase Timpa selesai
+processPostTimpa :: GameState -> Powerup -> String -> GameState
+processPostTimpa gs powerType msg =
+    let updatedLogs = logs gs ++ [msg]
+        gsLog = gs { logs = updatedLogs }
+    in case powerType of
+        Normal -> endTurn gsLog "Giliran Selesai."
+        pt     -> gsLog 
+            { phase = ResolvePowerup pt
+            , logs = updatedLogs ++ ["Powerup " ++ show pt ++ " aktif! Pilih target atau Skip."]
             }
 
--- Logic Powerup (Sederhana: Peek Self)
-logicResolve :: GameState -> [Int] -> GameState
-logicResolve gamestate indices =
+-- ================= LOGIC KABUL (SCORING) =================
+-- Fitur 1, 2, 3
+logicKabul :: GameState -> Int -> GameState
+logicKabul gs callerId =
+    let
+        allPlayers = players gs
+        caller = allPlayers !! callerId
+        callerScore = handScore (hand caller)
+        
+        -- Cek apakah caller punya nilai terkecil secara ketat?
+        -- "Bukan pemilik kartu terkecil" -> Penalty. 
+        -- Artinya ScoreCaller > min(Others) -> Penalty.
+        otherScores = map (handScore . hand) (filter (\p -> playerId p /= callerId) allPlayers)
+        minOther = minimum otherScores
+        
+        isLowest = callerScore <= minOther -- Jika seri dengan terkecil, kita anggap aman/menang.
+        
+        finalState = if isLowest 
+            then applyRankingPoints gs -- Fitur 2
+            else applyPenaltyPoints gs callerId -- Fitur 3
+            
+    in finalState { phase = GameOver, logs = logs finalState ++ ["KABUL dipanggil oleh Pemain " ++ show callerId] }
+
+-- Fitur 2: 3, 2, 1, 0 poin berdasarkan urutan score
+applyRankingPoints :: GameState -> GameState
+applyRankingPoints gs =
+    let 
+        sortedPlayers = sortBy (compare `on` (handScore . hand)) (players gs)
+        -- sortedPlayers :: [Player] (urut dari score terkecil)
+        
+        -- Zip dengan poin [3, 2, 1, 0, ...]
+        pointsAllocation = zip (map playerId sortedPlayers) [3, 2, 1, 0]
+        
+        newPlayers = map (\p -> 
+            let addPt = lookUpPoints (playerId p) pointsAllocation
+            in p { score = score p + addPt }
+            ) (players gs)
+            
+    in gs { players = newPlayers, logs = logs gs ++ ["Distribusi Poin Klasemen Berhasil."] }
+
+-- Fitur 3: Penalty (-1 caller, +1 others)
+applyPenaltyPoints :: GameState -> Int -> GameState
+applyPenaltyPoints gs culpritId =
+    let newPlayers = map (\p -> 
+            if playerId p == culpritId 
+            then p { score = score p - 1 }
+            else p { score = score p + 1 }
+            ) (players gs)
+    in gs { players = newPlayers, logs = logs gs ++ ["Kabul Gagal! Penalti diberikan."] }
+
+lookUpPoints :: Int -> [(Int, Int)] -> Int
+lookUpPoints _ [] = 0
+lookUpPoints pid ((id, pt):xs)
+    | pid == id = pt
+    | otherwise = lookUpPoints pid xs
+
+-- ================= LOGIC POWERUP & UTILS =================
+logicResolve :: GameState -> (Int, Int) -> GameState
+logicResolve gamestate idx =
     case phase gamestate of
-        ResolvePowerup powerType -> applyPowerupLogic gamestate powerType indices
-        _ -> gamestate -- Should not happen if Rules are correct
+        ResolvePowerup powerType -> applyPowerupLogic gamestate powerType idx
+        _ -> gamestate 
 
-applyPowerupLogic :: GameState -> Powerup -> [Int] -> GameState
-
--- 1. PEEK SELF: Mengintip 1 kartu sendiri
--- Input: [myCardIndex]
-applyPowerupLogic gamestate PeekSelf [idx] =
+applyPowerupLogic :: GameState -> Powerup -> (Int, Int) -> GameState
+applyPowerupLogic gs PeekSelf (idx, _) =
     let 
-        player      = currentPlayer gamestate
-        Hand hands  = hand player
-        card        = getCardAt (Hand hands) idx
-        msg         = "Hasil PeekSelf: " ++ showCardRS card
-    in (endTurn gamestate "Menggunakan PeekSelf") { privateInfo = [(playerId player, msg)] }
+        p = currentPlayer gs
+        c = getCardAt (hand p) idx
+        msg = "Kartu: " ++ show c
+    in (endTurn gs "PeekSelf Selesai") { privateInfo = [(playerId p, msg)] }
 
--- 2. PEEK OPPONENT: Mengintip 1 kartu lawan
--- Input: [opponentCardIndex]
-applyPowerupLogic gamestate PeekOpponent [idx] =
+applyPowerupLogic gs PeekOpponent (_, idx) =
     let 
-        player      = currentPlayer gamestate
-        opp         = getOpponent gamestate
-        card        = getCardAt (hand opp) idx
-        msg         = "Hasil PeekOpponent (Kartu Lawan): " ++ showCardRS card
-    in (endTurn gamestate "Menggunakan PeekOpponent") { privateInfo = [(playerId player, msg)] }
+        p = currentPlayer gs
+        opp = getOpponent gs
+        c = getCardAt (hand opp) idx
+        msg = "Kartu lawan: " ++ show c
+    in (endTurn gs "PeekOpponent Selesai") { privateInfo = [(playerId p, msg)] }
 
--- 3. PEEK SO (Self & Opponent): Intip 1 punya sendiri, 1 punya lawan
--- Input: [myIdx, oppIdx]
-applyPowerupLogic gamestate PeekSO [myIdx, oppIdx] =
+applyPowerupLogic gs PeekSO (myIdx, oppIdx) =
     let 
-        player      = currentPlayer gamestate
-        opp         = getOpponent gamestate
-        myCard      = getCardAt (hand player) myIdx
-        oppCard     = getCardAt (hand opp) oppIdx
-        msg         = "PeekSO -> Saya: " ++ showCardRS myCard ++ " | Lawan: " ++ showCardRS oppCard
-    in (endTurn gamestate "Menggunakan PeekSO") { privateInfo = [(playerId player, msg)] }
+        p = currentPlayer gs
+        opp = getOpponent gs
+        mc = getCardAt (hand p) myIdx
+        oc = getCardAt (hand opp) oppIdx
+        msg = "Saya: " ++ show mc ++ " | Lawan: " ++ show oc
+    in (endTurn gs "PeekSO Selesai") { privateInfo = [(playerId p, msg)] }
 
--- 4. SWITCH: Tukar kartu kita dengan lawan (Buta/Tanpa melihat)
--- Input: [myIdx, oppIdx]
-applyPowerupLogic gamestate Switch [myIdx, oppIdx] =
+applyPowerupLogic gs Switch (myIdx, oppIdx) =
+    endTurn (executeSwap gs myIdx oppIdx) "Switch Selesai"
+
+applyPowerupLogic gs PeekSwitch (myIdx, oppIdx) =
     let 
-        newState = executeSwap gamestate myIdx oppIdx
-    in endTurn newState "Melakukan SWITCH kartu dengan lawan"
+        p = currentPlayer gs
+        opp = getOpponent gs
+        mc = getCardAt (hand p) myIdx
+        oc = getCardAt (hand opp) oppIdx
+        msg = "Sebelum Tukar -> Saya: " ++ show mc ++ " | Lawan: " ++ show oc
+        swapped = executeSwap gs myIdx oppIdx
+    in (endTurn swapped "PeekSwitch Selesai") { privateInfo = [(playerId p, msg)] }
 
--- 5. PEEK SWITCH: Intip dulu, baru tukar
--- Input: [myIdx, oppIdx]
-applyPowerupLogic gamestate PeekSwitch [myIdx, oppIdx] =
+applyPowerupLogic gs PeekDouble (idx1, idx2) =
     let 
-        -- Intip dulu (logic sama kayak PeekSO)
-        player      = currentPlayer gamestate
-        opp         = getOpponent gamestate
-        myCard      = getCardAt (hand player) myIdx
-        oppCard     = getCardAt (hand opp) oppIdx
-        msg         = "PeekSwitch (Sebelum Tukar) -> Saya: " ++ showCardRS myCard ++ " | Lawan: " ++ showCardRS oppCard
-        
-        -- Lalu Tukar
-        swappedState = executeSwap gamestate myIdx oppIdx
-        
-    in (endTurn swappedState "Melakukan Peek & Switch") { privateInfo = [(playerId player, msg)] }
+        p = currentPlayer gs
+        opp = getOpponent gs
+        c1 = getCardAt (hand opp) idx1
+        c2 = getCardAt (hand opp) idx2
+        mc1 = getCardAt (hand p) idx1
+        mc2 = getCardAt (hand p) idx2
+        msg = "Lawan: " ++ show c1 ++ ", " ++ show c2 ++ " | Saya: " ++ show mc1 ++ ", " ++ show mc2
+    in (endTurn gs "PeekDouble Selesai") { privateInfo = [(playerId p, msg)] }
 
--- 6. PEEK DOUBLE: Intip 2 kartu (Asumsi: 2 kartu lawan, atau bebas)
--- Input: [idx1, idx2] -> Kita asumsikan intip 2 kartu lawan sesuai deskripsi umum
-applyPowerupLogic gamestate PeekDouble [idx1, idx2] =
-    let 
-        player      = currentPlayer gamestate
-        opp         = getOpponent gamestate
-        c1          = getCardAt (hand opp) idx1
-        c2          = getCardAt (hand opp) idx2
-        msg         = "PeekDouble Lawan -> Kartu 1: " ++ showCardRS c1 ++ ", Kartu 2: " ++ showCardRS c2
-    in (endTurn gamestate "Menggunakan PeekDouble") { privateInfo = [(playerId player, msg)] }
+applyPowerupLogic gs _ _ = endTurn gs "Action"
 
--- Fallback jika input index ngaco
-applyPowerupLogic gamestate _ _ = endTurn gamestate "Gagal memproses Powerup (Invalid Input)"
-
--- Utilities
 endTurn :: GameState -> String -> GameState
-endTurn gamestate reason =
-    let nextPlayer = (currentTurn gamestate + 1) `mod` (length (players gamestate))
-    in gamestate 
+endTurn gs reason =
+    let nextPlayer = (currentTurn gs + 1) `mod` (length (players gs))
+    in gs 
         { currentTurn = nextPlayer
         , phase = DrawPhase
-        , logs = logs gamestate ++ [reason, "Giliran Pemain Berikutnya."]
-        , privateInfo = [] -- Reset info rahasia
+        , logs = logs gs ++ [reason]
+        , privateInfo = [] -- Reset private info
         }
 
 replacePlayer :: [Player] -> Int -> Player -> [Player]
@@ -150,57 +249,39 @@ replacePlayer list idx newPlayer =
     in before ++ [newPlayer] ++ after
 
 removeAt :: Int -> [a] -> (a, [a])
-removeAt i xs = (xs !! i, take i xs ++ drop (i + 1) xs)
+removeAt idx xs = (xs !! idx, take idx xs ++ drop (idx + 1) xs)
 
--- === HELPER FUNCTIONS ===
-
--- Mengambil Object Lawan (Asumsi pemain berikutnya)
--- Subject to change
-getOpponent :: GameState -> Player
-getOpponent gs = 
-    let myPid = currentTurn gs
-        oppPid = (myPid + 1) `mod` length (players gs)
-    in (players gs) !! oppPid
-
--- Mengambil kartu aman dari Hand
 getCardAt :: Hand -> Int -> Card
 getCardAt (Hand cards) idx 
     | idx >= 0 && idx < length cards = cards !! idx
-    | otherwise = Card Joker Red Normal -- Fallback dummy jika error
+    | otherwise = Card Joker Red Normal 
 
--- Logika Tukar Kartu (Complex State Mutation)
-executeSwap :: GameState -> Int -> Int -> GameState
-executeSwap gs myIdx oppIdx =
-    let
-        -- 1. Ambil data player
-        meIdx = currentTurn gs
-        oppIdxGlobal = (meIdx + 1) `mod` length (players gs)
-        
-        pMe = (players gs) !! meIdx
-        pOpp = (players gs) !! oppIdxGlobal
-        
-        (Hand hMe) = hand pMe
-        (Hand hOpp) = hand pOpp
-        
-        -- 2. Ambil Kartu yang mau ditukar
-        cardMine = hMe !! myIdx
-        cardTheirs = hOpp !! oppIdx
-        
-        -- 3. Buat Hand Baru (Replace at index)
-        newHMe = replaceListIndex hMe myIdx cardTheirs
-        newHOpp = replaceListIndex hOpp oppIdx cardMine
-        
-        -- 4. Update Player Struct
-        pMeNew = pMe { hand = Hand newHMe }
-        pOppNew = pOpp { hand = Hand newHOpp }
-        
-        -- 5. Masukkan kembali ke daftar players
-        ps1 = replaceListIndex (players gs) meIdx pMeNew
-        psFinal = replaceListIndex ps1 oppIdxGlobal pOppNew
-        
-    in gs { players = psFinal }
-
--- Utilitas umum list replacement
 replaceListIndex :: [a] -> Int -> a -> [a]
 replaceListIndex list idx newVal =
     take idx list ++ [newVal] ++ drop (idx + 1) list
+
+executeSwap :: GameState -> Int -> Int -> GameState
+executeSwap gs myIdx oppIdx =
+    let
+        meIdx = currentTurn gs
+        oppIdxGlobal = (meIdx + 1) `mod` length (players gs)
+        pMe = (players gs) !! meIdx
+        pOpp = (players gs) !! oppIdxGlobal
+        (Hand hMe) = hand pMe
+        (Hand hOpp) = hand pOpp
+        
+        safeMyIdx = min myIdx (length hMe - 1)
+        safeOppIdx = min oppIdx (length hOpp - 1)
+        
+        cardMine = hMe !! safeMyIdx
+        cardTheirs = hOpp !! safeOppIdx
+        
+        newHMe = replaceListIndex hMe safeMyIdx cardTheirs
+        newHOpp = replaceListIndex hOpp safeOppIdx cardMine
+        
+        pMeNew = pMe { hand = Hand newHMe }
+        pOppNew = pOpp { hand = Hand newHOpp }
+        
+        ps1 = replaceListIndex (players gs) meIdx pMeNew
+        psFinal = replaceListIndex ps1 oppIdxGlobal pOppNew
+    in gs { players = psFinal }

@@ -6,7 +6,6 @@ module Card where
 import Control.Monad (forM)
 import Data.Aeson (ToJSON, FromJSON)
 import Data.Array.IO (IOArray, newListArray, readArray, writeArray)
-import Data.List (intercalate)
 import GHC.Generics (Generic)
 import System.Random (randomRIO)
 
@@ -25,9 +24,6 @@ data Card = Card {rank :: Rank, suit:: Suit, powerup :: Powerup}
 type Deck = [Card]
 
 newtype Hand = Hand [Card] deriving (Show, Eq, Generic, ToJSON, FromJSON)
-
--- instance Show Hand where
---     show (Hand hs) = "[" ++ intercalate ", " (map showCardRS hs) ++ "]"
 
 instance Show Card where
     show (Card r s _) = show r ++ " of " ++ show s
@@ -66,15 +62,11 @@ valueRules King Clubs        = 12
 valueRules King Spades       = 12
 valueRules r _ = fromEnum r + 1 
 
--- valueRules King s | s `elem` [Hearts, Diamonds] = 0
--- valueRules King s | s `elem` [Clubs,  Spades]   = 12
-
 powerRules :: Rank -> Suit -> Powerup
 powerRules Joker Black      = PeekDouble
 powerRules Joker Red        = Normal
 powerRules King Clubs       = PeekSwitch
 powerRules King Spades      = PeekSwitch
--- powerRules King s | s `elem` [Clubs, Spades] = PeekSwitch
 powerRules King Diamonds    = Normal
 powerRules King Hearts      = Normal
 powerRules Jack _           = Switch
@@ -104,9 +96,6 @@ buildDeck = standard ++ jokers
       , Card Joker Black (powerRules Joker Black)
       ]
 
-showCardRS :: Card -> String
-showCardRS (Card r s _) = show r ++ " of " ++ show s 
-
 drawCard :: Deck -> (Card, Deck)
 drawCard [] = error "Cannot draw from an empty deck!"
 drawCard (topCard : restOfDeck) = (topCard, restOfDeck)
@@ -129,4 +118,4 @@ shuffleDeck cards = do
     -- Convert the mutable array back to a pure list
     -- (The "elems" function from Data.Array does this, but this way works too)
     mapM (readArray arr) [0 .. len - 1]
-    -- shuffle ini masih random, asumsi pure function gagal
+    -- shuffle ini menggunakan random, aspek pure function gagal.

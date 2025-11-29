@@ -6,64 +6,65 @@ import Card
 
 type Rule = GameState -> GameAction -> Either String ()
 
--- 1. Cek Giliran
+-- Helper ekstraksi Player ID dari Action
+getActionPlayerId :: GameAction -> Int
+getActionPlayerId (DrawAction p)          = p
+getActionPlayerId (DiscardAction p _)     = p
+getActionPlayerId (TargetAction p _)      = p
+getActionPlayerId (KabulAction p)         = p
+getActionPlayerId (TimpaAction p _)       = p
+getActionPlayerId (PassTimpaAction p)     = p
+getActionPlayerId (SkipPowerupAction p)   = p
+
+-- 1. Turn Check
+-- Dimodifikasi: Untuk Phase TimpaPhase, yang boleh gerak adalah `askingIdx`, bukan `currentTurn`.
 isPlayerTurn :: Rule
 isPlayerTurn gamestate action = 
-    let player_id = case action of
-            DrawAction p           -> p
-            DiscardAction p _      -> p 
-            TargetAction p _       -> p 
-            FinishGameAction p     -> p
+    let actorId = getActionPlayerId action
+    in case phase gamestate of
+        TimpaPhase _ _ asker _ -> 
+            if actorId == asker then Right () else Left $ "Menunggu respon Timpa dari Pemain " ++ show asker
+        _ -> 
+            if actorId == currentTurn gamestate then Right () else Left "Bukan giliran Anda!"
 
-    in if player_id == playerId (currentPlayer gamestate)
-       then Right ()
-       else Left "Bukan giliran Anda!"
-
--- 2. Cek Fase (PERBAIKAN: DrawPhase & DiscardPhase tidak pakai underscore '_')
+-- 2. Phase Check
 isPhaseCorrect :: Rule
 isPhaseCorrect gamestate action =
     case (phase gamestate, action) of
         (DrawPhase, DrawAction _)             -> Right ()
+        (DrawPhase, KabulAction _)            -> Right () -- Kabul diperbolehkan di awal giliran (pengganti Draw)
+        
         (DiscardPhase, DiscardAction _ _)     -> Right ()
+        
         (ResolvePowerup _, TargetAction _ _)  -> Right ()
+        (ResolvePowerup _, SkipPowerupAction _) -> Right () -- Fitur 5: Skip Powerup
+        
+        (TimpaPhase _ _ _ _, TimpaAction _ _) -> Right ()
+        (TimpaPhase _ _ _ _, PassTimpaAction _) -> Right ()
+        
         (GameOver, _)                         -> Left "Permainan Berakhir."
         _                                     -> Left "Aksi tidak valid di fase ini."
 
--- 3. Cek Index Kartu
+-- 3. Index Check
 isValidIndex :: Rule
-isValidIndex gamestate (DiscardAction _ idx) = checkIndex gamestate idx
--- TargetAction membawa List [Int], jadi kita cek satu-satu pakai mapM_
-isValidIndex gamestate (TargetAction _ indices) = mapM_ (checkIndex gamestate) indices
+isValidIndex gamestate (DiscardAction _ idx) = checkHandIndex (currentPlayer gamestate) idx
+isValidIndex gamestate (TimpaAction pid idx) = 
+    -- Cek tangan pemain yang melakukan Timpa
+    let p = (players gamestate) !! pid
+    in checkHandIndex p idx
+
+isValidIndex gamestate (TargetAction _ (idx1, idx2)) = do
+    checkHandIndex (currentPlayer gamestate) idx1
+    -- idx2 lawan tidak dicek ketat karena logic powerup bervariasi
+    Right ()
 isValidIndex _ _ = Right ()
 
-checkIndex :: GameState -> Int -> Either String ()
-checkIndex gamestate idx = 
-    let (Hand hands) = hand (currentPlayer gamestate)
+checkHandIndex :: Player -> Int -> Either String ()
+checkHandIndex player idx = 
+    let (Hand hands) = hand player
     in if idx >= 0 && idx < length hands
        then Right ()
        else Left $ "Index kartu " ++ show idx ++ " tidak valid."
-
--- 4. Cek Jumlah Target Powerup
-isTargetCountValid :: Rule
-isTargetCountValid gs (TargetAction _ indices) =
-    case phase gs of
-        ResolvePowerup p -> 
-            let required = requiredTargets p
-            in if length indices == required
-               then Right ()
-               else Left $ "Powerup ini butuh " ++ show required ++ " target, tapi menerima " ++ show (length indices)
-        _ -> Right () -- Skip jika bukan fase resolve
-isTargetCountValid _ _ = Right ()
-
--- Helper jumlah target
-requiredTargets :: Powerup -> Int
-requiredTargets PeekSelf     = 1
-requiredTargets PeekOpponent = 1
-requiredTargets PeekSO       = 2
-requiredTargets Switch       = 2
-requiredTargets PeekSwitch   = 2
-requiredTargets PeekDouble   = 2
-requiredTargets _            = 0
 
 -- Combinator
 infixl 0 .&&.
@@ -71,4 +72,4 @@ infixl 0 .&&.
 (r1 .&&. r2) gamestate action = r1 gamestate action >> r2 gamestate action
 
 gameRules :: Rule
-gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex .&&. isTargetCountValid
+gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex
