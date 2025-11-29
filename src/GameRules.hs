@@ -6,70 +6,71 @@ import Card
 
 type Rule = GameState -> GameAction -> Either String ()
 
--- Helper ekstraksi Player ID dari Action
-getActionPlayerId :: GameAction -> Int
-getActionPlayerId (DrawAction p)          = p
-getActionPlayerId (DiscardAction p _)     = p
-getActionPlayerId (TargetAction p _)      = p
-getActionPlayerId (KabulAction p)         = p
-getActionPlayerId (TimpaAction p _)       = p
-getActionPlayerId (PassTimpaAction p)     = p
-getActionPlayerId (SkipPowerupAction p)   = p
+getActor :: GameAction -> Int
+getActor (DrawAction p)        = p
+getActor (DiscardAction p _)   = p
+getActor (TimpaAction p _)     = p
+getActor (PassTimpaAction p)   = p
+getActor (SkipPowerupAction p) = p
+getActor (TargetAction p _ _)  = p
+getActor (KabulAction p)       = p
+getActor (FinishTurnAction p)  = p
+getActor (InitPeekAction p _ _) = p
 
--- 1. Turn Check
--- Dimodifikasi: Untuk Phase TimpaPhase, yang boleh gerak adalah `askingIdx`, bukan `currentTurn`.
+-- 1. TURN CHECK
 isPlayerTurn :: Rule
-isPlayerTurn gamestate action = 
-    let actorId = getActionPlayerId action
-    in case phase gamestate of
-        TimpaPhase _ _ asker _ -> 
-            if actorId == asker then Right () else Left $ "Menunggu respon Timpa dari Pemain " ++ show asker
-        _ -> 
-            if actorId == currentTurn gamestate then Right () else Left "Bukan giliran Anda!"
-
--- 2. Phase Check
-isPhaseCorrect :: Rule
-isPhaseCorrect gamestate action =
-    case (phase gamestate, action) of
-        (DrawPhase, DrawAction _)             -> Right ()
-        (DrawPhase, KabulAction _)            -> Right () -- Kabul diperbolehkan di awal giliran (pengganti Draw)
+isPlayerTurn gs action = 
+    let actor = getActor action
+    in case phase gs of
+        InitialPeekPhase (nextP:_) ->
+            if actor == nextP then Right () else Left $ "Tunggu! Giliran Pemain " ++ show nextP
         
+        InitPeekFeedback p _ ->
+            if actor == p then Right () else Left "Anda sedang melihat hasil intipan."
+
+        TimpaRound _ _ asker _ -> 
+            if actor == asker then Right () else Left $ "Giliran Pemain " ++ show asker ++ " (Timpa)."
+            
+        _ -> 
+            if actor == currentTurn gs then Right () else Left "Bukan giliran Anda!"
+
+-- 2. PHASE CHECK
+isPhaseCorrect :: Rule
+isPhaseCorrect gs action =
+    case (phase gs, action) of
+        (InitialPeekPhase _, InitPeekAction _ _ _) -> Right ()
+        (InitPeekFeedback _ _, FinishTurnAction _) -> Right () -- Izin Finish saat Feedback
+        
+        (DrawPhase, DrawAction _)             -> Right ()
         (DiscardPhase, DiscardAction _ _)     -> Right ()
         
-        (ResolvePowerup _, TargetAction _ _)  -> Right ()
-        (ResolvePowerup _, SkipPowerupAction _) -> Right () -- Fitur 5: Skip Powerup
+        (TimpaRound{}, TimpaAction _ _)       -> Right ()
+        (TimpaRound{}, PassTimpaAction _)     -> Right ()
         
-        (TimpaPhase _ _ _ _, TimpaAction _ _) -> Right ()
-        (TimpaPhase _ _ _ _, PassTimpaAction _) -> Right ()
+        (ResolvePowerup _, TargetAction _ _ _) -> Right ()
+        (ResolvePowerup _, SkipPowerupAction _) -> Right ()
+        
+        (PostRoundDecision, KabulAction _)    -> Right ()
+        (PostRoundDecision, FinishTurnAction _) -> Right ()
         
         (GameOver, _)                         -> Left "Permainan Berakhir."
-        _                                     -> Left "Aksi tidak valid di fase ini."
+        (p, a)                                -> Left $ "Aksi tidak valid di fase " ++ show p
 
--- 3. Index Check
+-- 3. INDEX CHECK
 isValidIndex :: Rule
-isValidIndex gamestate (DiscardAction _ idx) = checkHandIndex (currentPlayer gamestate) idx
-isValidIndex gamestate (TimpaAction pid idx) = 
-    -- Cek tangan pemain yang melakukan Timpa
-    let p = (players gamestate) !! pid
-    in checkHandIndex p idx
-
-isValidIndex gamestate (TargetAction _ (idx1, idx2)) = do
-    checkHandIndex (currentPlayer gamestate) idx1
-    -- idx2 lawan tidak dicek ketat karena logic powerup bervariasi
-    Right ()
+isValidIndex gs (DiscardAction pid idx) = checkHandIdx gs pid idx
+isValidIndex gs (TimpaAction pid idx)   = checkHandIdx gs pid idx
 isValidIndex _ _ = Right ()
 
-checkHandIndex :: Player -> Int -> Either String ()
-checkHandIndex player idx = 
-    let (Hand hands) = hand player
-    in if idx >= 0 && idx < length hands
-       then Right ()
-       else Left $ "Index kartu " ++ show idx ++ " tidak valid."
+checkHandIdx :: GameState -> Int -> Int -> Either String ()
+checkHandIdx gs pid idx =
+    let p = (players gs) !! pid
+        (Hand h) = hand p
+    in if idx >= 0 && idx < length h then Right () else Left "Index kartu tidak valid."
 
--- Combinator
 infixl 0 .&&.
 (.&&.) :: Rule -> Rule -> Rule
-(r1 .&&. r2) gamestate action = r1 gamestate action >> r2 gamestate action
+(r1 .&&. r2) gs action = r1 gs action >> r2 gs action
 
 gameRules :: Rule
 gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex

@@ -10,14 +10,14 @@ import Data.Aeson (ToJSON, FromJSON)
 data Player = Player 
     { playerId :: Int
     , hand :: Hand
-    , score :: Int
+    , matchPoints :: Int
     } deriving (Show, Generic, ToJSON, FromJSON)
 
 handScore :: Hand -> Int
 handScore (Hand hands) = sum (map cardValue hands)
 
 updatePlayerScore :: Player -> Player
-updatePlayerScore player' = player' { score = handScore (hand player')}
+updatePlayerScore player' = player' { matchPoints = handScore (hand player')}
 
 emptyHand :: Hand
 emptyHand = Hand []

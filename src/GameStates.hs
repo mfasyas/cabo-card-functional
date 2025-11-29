@@ -9,31 +9,32 @@ import GHC.Generics (Generic)
 import Data.Aeson (ToJSON, FromJSON)
 
 data GamePhase
-    = DrawPhase
+    = InitialPeekPhase [Int]      -- Giliran input
+    | InitPeekFeedback Int [Int]  -- FASE BARU: Giliran baca hasil (PlayerId, RemainingList)
+    | DrawPhase
     | DiscardPhase
-    | TimpaPhase 
-        { targetRank    :: Rank
-        , originIdx     :: Int
-        , askingIdx     :: Int
-        , savedPowerup  :: Powerup
+    | TimpaRound 
+        { targetRank :: Rank
+        , originIdx :: Int
+        , askingIdx :: Int
+        , savedPowerup :: Powerup
         }
     | ResolvePowerup Powerup
-    | PostRoundDecision
+    | PostRoundDecision       
     | GameOver
     deriving (Show, Eq, Generic, ToJSON, FromJSON)
--- Game Phases
 
 data GameAction
     = DrawAction Int
     | DiscardAction Int Int
-    | TargetAction Int (Int, Int) -- di awal Int [Int] jaga-jaga lupa
-    | KabulAction Int
     | TimpaAction Int Int
     | PassTimpaAction Int
     | SkipPowerupAction Int
+    | TargetAction Int Int [Int] 
+    | KabulAction Int
+    | FinishTurnAction Int
+    | InitPeekAction Int Int Int 
     deriving (Show, Eq, Generic, ToJSON, FromJSON)
--- Action Games
--- Bagian TargetAction menyimpan index player saat turn dan player setelahnya.
 
 data GameState = GameState
     {
@@ -45,22 +46,15 @@ data GameState = GameState
     ,   logs            :: [String]
     ,   privateInfo     :: [(Int, String)]
     } deriving (Generic, ToJSON, FromJSON)
--- Game States (Alternatif Table)
--- Ini digunakan agar kode lebih deklaratif dan  
--- harapannya akan lebih mudah untuk pembuatan UI/UX
 
--- Inisiasi state awal permainan
 initialState :: Deck -> GameState
 initialState deck = 
     let
-
         (p1Cards, rest1) = splitAt 4 deck
         (p2Cards, rest2) = splitAt 4 rest1
         (p3Cards, rest3) = splitAt 4 rest2
         (p4Cards, rest4) = splitAt 4 rest3
  
-        drawDeckRest = rest4
-
         p1 = (makePlayer 0) { hand = Hand p1Cards }
         p2 = (makePlayer 1) { hand = Hand p2Cards }
         p3 = (makePlayer 2) { hand = Hand p3Cards }
@@ -68,64 +62,47 @@ initialState deck =
     in GameState 
     {
         players         = [p1, p2, p3, p4]
-    ,   drawDeck        = drawDeckRest
+    ,   drawDeck        = rest4
     ,   discardPile     = []
-    ,   currentTurn     = 0
-    ,   phase           = DrawPhase
-    ,   logs            = ["Permainan Dimulai."]
+    ,   currentTurn     = 0 
+    ,   phase           = InitialPeekPhase [0, 1, 2, 3] 
+    ,   logs            = ["Permainan Dimulai. Fase Intip Awal."]
     ,   privateInfo     = []
     }
 
--- Helper untuk player aktif
 currentPlayer :: GameState -> Player
-currentPlayer gamestate = (players gamestate) !! (currentTurn gamestate)
-
--- Mengambil Object Lawan (Asumsi pemain berikutnya)
--- Subject to change
-getOpponent :: GameState -> Player
-getOpponent gs = 
-    let myPid = currentTurn gs
-        oppPid = (myPid + 1) `mod` length (players gs)
-    in (players gs) !! oppPid
-
--- ==================================== Instances ============================================
+currentPlayer gs = (players gs) !! (currentTurn gs)
 
 instance Show GameState where
-    show gamestate = 
+    show gs = 
         let
-            playersList = players gamestate
-            p1 = playersList !! 0
-            p2 = playersList !! 1
-            p3 = if length playersList > 2 then playersList !! 2 else p1 
-            p4 = if length playersList > 3 then playersList !! 3 else p2 
-
-            row1 = showRow p1 p2
-            row2 = if length playersList > 2 then showRow p3 p4 else ""
+            pList = players gs
+            showP i = if i < length pList then showPlayer (pList !! i) else ""
+            row1 = showP 0 ++ "      " ++ showP 1
+            row2 = showP 2 ++ "      " ++ showP 3
             
-            phaseMsg = case phase gamestate of
-                TimpaPhase rank _ asker _ -> "Timpa Check! (Rank: " ++ show rank ++ ") -> Menunggu Pemain " ++ show asker
+            phaseMsg = case phase gs of
+                InitialPeekPhase (p:_)    -> "INTIP AWAL: Giliran Pemain " ++ show p
+                InitPeekFeedback p _      -> "INTIP AWAL: Hasil Pemain " ++ show p ++ " (Ketik 'finish' untuk lanjut)"
+                TimpaRound r _ asker _    -> "TIMPA CHECK (Rank: " ++ show r ++ ") -> Menunggu P" ++ show asker
+                PostRoundDecision         -> "AKHIR GILIRAN -> Ketik 'kabul' atau 'finish'"
                 p -> show p
 
         in unlines 
-            [ "========================================================================"
-            , "                                 Table"
-            , "========================================================================"
+            [ "=================== TABLE ==================="
             , row1
             , ""
             , row2
-            , "========================================================================"
-            , "Pile Deck: " ++ showTop (discardPile gamestate) 
-            , "Draw Deck: " ++ show (length (drawDeck gamestate)) ++ " Cards"
-            , "========================================================================"
-            , "Giliran  : Pemain " ++ show (currentTurn gamestate)
-            , "Fase     : " ++ phaseMsg
+            , "============================================="
+            , "Discard Pile: " ++ showTop (discardPile gs) 
+            , "Draw Deck   : " ++ show (length (drawDeck gs))
+            , "Phase       : " ++ phaseMsg
+            , "============================================="
             ]
         where
-            showTop []       = "[Kosong]"
-            showTop (card:_) = show card
-            showPlayer player =
-                let Hand hands = hand player
-                    masked = unwords (replicate (length hands) "[[]]")
-                    scoreTxt = " (Pts: " ++ show (score player) ++ ")"
-                in "Pemain " ++ show (playerId player + 1) ++ scoreTxt ++ ": " ++ masked
-            showRow left right = showPlayer left ++ replicate 5 ' ' ++ showPlayer right
+            showTop [] = "[Empty]"
+            showTop (c:_) = show c
+            showPlayer p = 
+                let (Hand h) = hand p
+                    masked = unwords (replicate (length h) "[#]")
+                in "P" ++ show (playerId p) ++ "(" ++ show (matchPoints p) ++ "pts): " ++ masked

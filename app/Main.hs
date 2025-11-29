@@ -1,6 +1,7 @@
 module Main where
 
 import System.IO
+import Text.Read (readMaybe)
 import Card (shuffleDeck, buildDeck, Card(..), Rank(..), Suit(..), Hand(..))
 import Player
 import GameStates
@@ -8,7 +9,7 @@ import GameEngine (updateGame)
 
 main :: IO ()
 main = do
-    putStrLn "=== SIMULASI GAME ENGINE (STATE MACHINE) ==="
+    putStrLn "=== SIMULASI GAME ENGINE ==="
     deck <- shuffleDeck buildDeck
     let state0 = initialState deck
     gameLoop state0
@@ -19,76 +20,84 @@ gameLoop state = do
     
     if phase state == GameOver
         then do
-            putStrLn "\n!!! PERMAINAN BERAKHIR !!!"
-            putStrLn "Klasemen Akhir:"
-            mapM_ (\p -> putStrLn $ "Player " ++ show (playerId p) ++ " Score Kartu: " ++ show (handScore (hand p)) ++ " -> Match Points: " ++ show (score p)) (players state)
+            putStrLn "\n!!! GAME OVER !!!"
+            putStrLn "=== KLASEMEN AKHIR ==="
+            mapM_ (\p -> putStrLn $ "Player " ++ show (playerId p) ++ 
+                                   " | Score: " ++ show (handScore (hand p)) ++ 
+                                   " | POINTS: " ++ show (matchPoints p)) 
+                  (players state)
         else do
-            putStr "\nPerintah (draw / kabul / discard <idx> / timpa <idx> / pass / target <i1> <i2> / skip): "
+            let prompt = case phase state of
+                           InitialPeekPhase _ -> "\n[INIT] initpeek <i1> <i2>: "
+                           InitPeekFeedback _ _ -> "\n[INFO] Ketik 'finish' untuk lanjut: "
+                           TimpaRound{} -> "\n[TIMPA] timpa <idx> / pass: "
+                           PostRoundDecision -> "\n[END] kabul / finish: "
+                           _ -> "\nCMD: draw | discard <i> | target <pid> <ids...> | skip: "
+            
+            putStr prompt
             hFlush stdout
             input <- getLine
             
-            -- Parsing ID berdasarkan Phase. 
-            -- Jika Phase Timpa, ID adalah askingIdx. Jika tidak, ID = currentTurn.
-            let pid = case phase state of
-                        TimpaPhase _ _ asking _ -> asking
-                        _ -> currentTurn state
-
+            let pid = getCurrentActor state
             let action = parseInput pid input
             
             case action of
                 Nothing -> do
-                    putStrLn "Error: Perintah tidak dikenali."
+                    putStrLn "[ERROR] Command salah."
                     gameLoop state
                 Just act -> do
                     case updateGame state act of
                         Left err -> do
-                            putStrLn $ "\n[!!!] ATURAN DILANGGAR: " ++ err
+                            putStrLn $ "[GAGAL] " ++ err
                             gameLoop state 
                         Right newState -> do
-                            putStrLn "\n[OK] Aksi berhasil."
+                            putStrLn "[OK]"
                             gameLoop newState 
+
+getCurrentActor :: GameState -> Int
+getCurrentActor gs = 
+    case phase gs of
+        InitialPeekPhase (p:_) -> p
+        InitPeekFeedback p _ -> p -- PENTING: Agar info ditampilkan ke pemain yang benar
+        TimpaRound _ _ asking _ -> asking
+        _ -> currentTurn gs
 
 printState :: GameState -> IO ()
 printState gs = do
     putStrLn "\n"
     print gs 
 
-    let currP = currentPlayer gs
-    let (Hand h) = hand currP
+    let actorId = getCurrentActor gs
+    let actor = (players gs) !! actorId
+    let (Hand h) = hand actor
+
+    -- Tampilkan kartu tangan
+    putStrLn $ "Kartu Anda (Player " ++ show actorId ++ "):"
+    mapM_ (\(i, c) -> putStrLn $ "  [" ++ show i ++ "] " ++ show c) (zip [0..] h)
     
-    -- Tampilkan kartu tangan untuk pemain yang sedang aktif (Hotseat simulation)
-    -- Jika fase Timpa, tampilkan kartu pemain yang ditanya
-    let activePId = case phase gs of 
-                      TimpaPhase _ _ asking _ -> asking 
-                      _ -> currentTurn gs
-    
-    let activeHand = hand ((players gs) !! activePId)
-    let (Hand hActive) = activeHand
-
-    putStrLn $ "Kartu di Tangan Pemain " ++ show activePId ++ ":"
-    mapM_ (\(i, c) -> putStrLn $ "  [" ++ show i ++ "] " ++ show c) (zip [0..] hActive)
-
-    putStrLn "Logs Terakhir:"
-    mapM_ (\l -> putStrLn $ "  > " ++ l) (take 3 $ reverse $ logs gs)
-
-    -- Fitur 6: Private Info Check
-    -- Hanya tampilkan jika privateInfo ditujukan untuk pemain yang sedang aktif
-    case privateInfo gs of
-        [] -> return ()
-        infoList -> do
-            let myInfo = filter (\(ownerId, _) -> ownerId == activePId) infoList
-            if null myInfo 
-                then return () 
-                else putStrLn $ "\n[!!!] INFO RAHASIA ANDA: " ++ show myInfo
+    -- Tampilkan Private Info jika ada
+    case lookup actorId (privateInfo gs) of
+        Just msg -> putStrLn $ "\n[!!! INFO RAHASIA !!!] -> " ++ msg
+        Nothing  -> return ()
 
 parseInput :: Int -> String -> Maybe GameAction
 parseInput pid input = 
     case words input of
         ["draw"]                -> Just (DrawAction pid)
         ["kabul"]               -> Just (KabulAction pid)
-        ["discard", idx]        -> Just (DiscardAction pid (read idx))
-        ["timpa", idx]          -> Just (TimpaAction pid (read idx))
+        ["finish"]              -> Just (FinishTurnAction pid)
         ["pass"]                -> Just (PassTimpaAction pid)
         ["skip"]                -> Just (SkipPowerupAction pid)
-        ["target", idx1, idx2]  -> Just (TargetAction pid (read idx1, read idx2))
-        _                       -> Nothing
+        ["discard", iStr]       -> fmap (DiscardAction pid) (readMaybe iStr)
+        ["timpa", iStr]         -> fmap (TimpaAction pid) (readMaybe iStr)
+        ["initpeek", i1, i2]    -> do
+                                     x <- readMaybe i1
+                                     y <- readMaybe i2
+                                     Just (InitPeekAction pid x y)
+        
+        ("target":pidStr:idxStrs) -> 
+            case (readMaybe pidStr, mapM readMaybe idxStrs) of
+                (Just tPid, Just indices) -> Just (TargetAction pid tPid indices)
+                _ -> Nothing
+                
+        _ -> Nothing
