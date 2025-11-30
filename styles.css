@@ -1,215 +1,98 @@
 :root {
-    --bg-color: #2c3e50;
-    --table-color: #35654d;
-    --table-gradient: radial-gradient(circle at center, #35654d 0%, #1e3c2f 100%);
-    --card-width: 65px;
-    --card-height: 96px;
-    --card-radius: 6px;
-    --accent-color: #f1c40f;
-    --danger-color: #e74c3c;
-    --primary-color: #3498db;
-    --text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    --bg-color: #1e272e;
+    --table-color: #27ae60;
+    --card-w: 70px;
+    --card-h: 100px;
+    --gold: #f1c40f;
+    --red: #e74c3c;
+    --blue: #3498db;
 }
-
-* { box-sizing: border-box; }
 
 body {
-    margin: 0;
-    font-family: 'Roboto', sans-serif;
-    background: #111;
-    color: white;
-    height: 100vh;
-    overflow: hidden;
-    user-select: none;
+    margin: 0; font-family: 'Segoe UI', sans-serif;
+    background: var(--bg-color); color: white;
+    overflow: hidden; user-select: none;
 }
 
-/* LAYOUT UTAMA */
-.game-table {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: var(--table-gradient);
-    padding: 10px;
-    position: relative;
+/* UTILS */
+.hidden { display: none !important; }
+.btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; background: var(--blue); color: white; margin: 2px;}
+.btn-gold { background: var(--gold); color: #2c3e50; }
+.btn-red { background: var(--red); }
+.btn-small { padding: 5px 10px; font-size: 0.8em; }
+
+/* TABLE LAYOUT */
+.game-container {
+    height: 100vh; display: flex; flex-direction: column;
+}
+
+.top-bar {
+    display: flex; justify-content: space-between; padding: 10px;
+    background: rgba(0,0,0,0.3); height: 60px;
+}
+.phase-box { font-weight: bold; font-size: 1.2em; color: var(--gold); }
+.log-box ul { list-style: none; padding: 0; margin: 0; font-size: 0.8em; opacity: 0.8; }
+
+.table-area {
+    flex: 1; position: relative;
+    background: radial-gradient(circle, #2ecc71 0%, #27ae60 60%, #16a085 100%);
+    margin: 10px; border-radius: 20px;
     box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
 }
 
-.row { display: flex; align-items: center; justify-content: center; width: 100%; }
-.top-row { height: 20%; flex-direction: column; justify-content: flex-start; padding-top: 10px; }
-.center-row { height: 35%; justify-content: space-between; padding: 0 10px; }
-.bottom-row { height: 45%; flex-direction: column; justify-content: flex-end; padding-bottom: 10px; }
+/* CENTER DECK */
+.center-deck {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; gap: 20px; align-items: center;
+}
 
-/* UTILITAS */
-.hidden { display: none !important; }
-.text-danger { color: var(--danger-color); }
-.highlight-text { color: var(--accent-color); font-weight: bold; }
+/* SEATS POSITIONING */
+.seat { position: absolute; display: flex; flex-direction: column; align-items: center; }
 
-/* KARTU VISUAL */
+/* Bottom = Active Player */
+.seat-bottom { bottom: 20px; left: 50%; transform: translateX(-50%); width: 80%; }
+/* Top = Across */
+.seat-top { top: 20px; left: 50%; transform: translateX(-50%); }
+/* Left */
+.seat-left { top: 50%; left: 20px; transform: translateY(-50%); }
+/* Right */
+.seat-right { top: 50%; right: 20px; transform: translateY(-50%); }
+
+/* CARDS */
 .card {
-    width: var(--card-width);
-    height: var(--card-height);
-    background-color: white;
-    border-radius: var(--card-radius);
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
-    font-family: 'Rye', serif; /* Font gaya kartu klasik */
+    width: var(--card-w); height: var(--card-h);
+    background: white; color: black; border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: bold; position: relative;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    cursor: pointer; transition: transform 0.2s;
 }
-
-/* Warna Suit */
-.card.red { color: #d32f2f; }
-.card.black { color: #212121; }
-
-/* Simbol Besar di Tengah */
-.card .suit-center { font-size: 2rem; line-height: 1; }
-/* Angka di Pojok */
-.card .corner { position: absolute; font-size: 0.8rem; line-height: 1; display: flex; flex-direction: column; align-items: center;}
-.card .top-left { top: 4px; left: 4px; }
-.card .bottom-right { bottom: 4px; right: 4px; transform: rotate(180deg); }
-
-/* Bagian Belakang Kartu */
-.card.back, .deck-back {
-    background: repeating-linear-gradient(
-        45deg, #c0392b, #c0392b 5px, #b03a2e 5px, #b03a2e 10px
-    );
-    border: 2px solid #fff;
+.card.back {
+    background: repeating-linear-gradient(45deg, #c0392b, #c0392b 5px, #e74c3c 5px, #e74c3c 10px);
+    border: 2px solid white;
 }
-.card.back::after {
-    content: "⚜"; font-size: 2em; color: rgba(255,255,255,0.2);
-    display: flex; align-items: center; justify-content: center; height: 100%;
-}
+.card.selected { transform: translateY(-15px); border: 3px solid var(--gold); box-shadow: 0 0 15px var(--gold); }
+.card.red { color: #c0392b; }
+.card.black { color: #2c3e50; }
 
-/* Interaksi Kartu */
-.active-hand .card:hover { transform: translateY(-15px) scale(1.05); z-index: 10; }
-.card.selected {
-    transform: translateY(-20px);
-    border: 3px solid var(--accent-color);
-    box-shadow: 0 0 15px var(--accent-color);
-}
-.card-placeholder {
-    width: var(--card-width); height: var(--card-height);
-    border: 2px dashed rgba(255,255,255,0.3);
-    border-radius: var(--card-radius);
-    display: flex; align-items: center; justify-content: center;
-    color: rgba(255,255,255,0.5); font-size: 0.8rem; text-align: center;
-}
-
-/* AREA TANGAN */
 .hand-container {
-    display: flex; justify-content: center; gap: 5px;
-    padding: 10px; min-width: 200px;
-}
-.hand-container.compact .card { transform: scale(0.8); margin: 0 -10px; } /* Kartu lawan lebih rapat */
-
-/* AREA TENGAH */
-.deck-area { display: flex; gap: 20px; align-items: center; }
-.deck-group { position: relative; }
-.deck-badge {
-    position: absolute; top: -10px; right: -10px;
-    background: var(--accent-color); color: #000;
-    font-weight: bold; padding: 2px 6px; border-radius: 10px;
-    font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-/* Glow Animation untuk Deck saat fase Draw */
-@keyframes glow { 0% { box-shadow: 0 0 5px white; } 50% { box-shadow: 0 0 20px yellow; } 100% { box-shadow: 0 0 5px white; } }
-.glow-effect { animation: glow 1.5s infinite; }
-
-/* STATUS PANEL */
-.status-panel {
-    background: rgba(0,0,0,0.4);
-    border-radius: 8px;
-    padding: 10px;
-    width: 30%;
-    font-size: 0.85rem;
     display: flex;
-    flex-direction: column;
+    justify-content: center; /* Agar kartu ada di tengah */
+    gap: 5px;
+    margin: 10px 0;
+    min-height: var(--card-h); /* Pastikan container punya tinggi */
+    min-width: 50px;           /* Pastikan punya lebar minimal */
 }
-.phase-indicator { color: var(--accent-color); font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;}
-.log-list { list-style: none; padding: 0; margin: 0; max-height: 80px; overflow-y: auto; font-family: monospace; color: #ccc;}
-.log-list li { margin-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-
-/* CONTROLS */
-.control-bar {
-    width: 100%; display: flex; flex-direction: column; align-items: center;
-    background: rgba(0,0,0,0.6); padding: 10px; backdrop-filter: blur(5px);
-    border-top: 1px solid rgba(255,255,255,0.1);
-}
-.instruction { color: #fff; margin-bottom: 10px; font-weight: 500; text-shadow: var(--text-shadow); }
-.action-buttons { display: flex; gap: 10px; }
-
-button {
-    border: none; border-radius: 4px; padding: 10px 20px;
-    font-weight: bold; cursor: pointer; text-transform: uppercase;
-    box-shadow: 0 3px 0 rgba(0,0,0,0.2);
-    transition: all 0.1s;
-}
-button:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
-button:disabled { background: #555; color: #888; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6; }
-
-.btn-action { background: var(--primary-color); color: white; min-width: 120px; }
-.btn-confirm { background: var(--accent-color); color: #2c3e50; }
-.btn-danger { background: var(--danger-color); color: white; }
-.btn-primary { background: #27ae60; color: white; font-size: 1.2rem; padding: 15px 30px; }
-.btn-secondary { background: #7f8c8d; color: white; }
+.seat-top .card, .seat-left .card, .seat-right .card { transform: scale(0.7); } /* Mini Cards */
 
 /* OVERLAYS */
 .overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85); z-index: 999;
-    display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: flex; justify-content: center; align-items: center; z-index: 100;
 }
-.backdrop-blur { backdrop-filter: blur(8px); }
-.overlay-card {
-    background: #2c3e50; padding: 30px; border-radius: 12px;
-    text-align: center; border: 2px solid rgba(255,255,255,0.1);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 90%;
-}
-.pulse-anim { animation: pulse 2s infinite; }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+.overlay-card { background: #2d3436; padding: 30px; border-radius: 10px; text-align: center; border: 2px solid var(--gold); }
+.highlight { color: var(--gold); font-size: 1.5em; display: block; margin: 10px 0; }
 
-.player-badge-large {
-    font-size: 2rem; font-weight: bold; color: var(--accent-color);
-    margin: 20px 0; font-family: 'Rye', serif;
-}
-
-/* OTHER PLAYERS */
-.side-players { display: flex; flex-direction: column; gap: 10px; }
-.mini-player {
-    background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px;
-    font-size: 0.7rem; text-align: center; width: 60px;
-}
-.mini-cards-row { display: flex; justify-content: center; margin-top: 3px; }
-.mini-card-icon { width: 10px; height: 14px; background: white; margin: 1px; border-radius: 2px; }
-
-/* INFO MODAL CONTENT */
-.info-content {
-    background: rgba(0,0,0,0.2); padding: 15px; border-radius: 6px;
-    margin-bottom: 15px; font-size: 1.1em; line-height: 1.5; color: #ecf0f1;
-}
-
-/* Pastikan urutan tumpukan (Stacking Order) */
-#turn-overlay { 
-    z-index: 1000; 
-}
-
-#game-over-overlay {
-    z-index: 3000;
-}
-
-#info-overlay { 
-    z-index: 2000; /* LEBIH TINGGI dari turn-overlay agar terlihat */
-}
-
-/* Tambahan styling agar modal terlihat jelas di atas background gelap turn */
-.info-card {
-    background: #2c3e50;
-    border: 2px solid #f1c40f; /* Border kuning biar menonjol */
-    box-shadow: 0 0 50px rgba(0,0,0,0.8);
-    min-width: 300px;
-}
+.control-panel { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; text-align: center;}
+.instruct { margin-bottom: 5px; color: #dfe6e9; font-style: italic; }

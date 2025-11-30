@@ -9,26 +9,10 @@ import Data.Array.IO (IOArray, newListArray, readArray, writeArray)
 import GHC.Generics (Generic)
 import System.Random (randomRIO)
 
-data Suit = Hearts | Diamonds | Clubs | Spades | Red | Black
-  deriving (Show, Eq, Generic, ToJSON, FromJSON)
-
-data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Joker
-  deriving (Show, Eq, Ord, Enum, Bounded, Generic, ToJSON, FromJSON)
-
-data Powerup = Normal | PeekSelf | PeekOpponent | PeekSO | Switch | PeekSwitch | PeekDouble
-  deriving (Show, Eq, Generic, ToJSON, FromJSON)
-
-data Card = Card {rank :: Rank, suit:: Suit, powerup :: Powerup} 
-  deriving (Eq, Generic, ToJSON, FromJSON)
-
-type Deck = [Card]
-
-newtype Hand = Hand [Card] deriving (Show, Eq, Generic, ToJSON, FromJSON)
-
-instance Show Card where
-    show (Card r s _) = show r ++ " of " ++ show s
 
 {-
+Powerups and card info
+
   - PeekSelf        -- open 1 card from player's hand
   - PeekOpponent    -- open 1 card from opponent's hand
   - PeekSO          -- open 1 card from player and opponent hand
@@ -49,7 +33,29 @@ instance Show Card where
 -}
 
 -- =============================================================================
--- Lists of functions
+-- Type for Cards
+
+data Suit = Hearts | Diamonds | Clubs | Spades | Red | Black
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)
+
+data Rank = Ace | Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Joker
+  deriving (Show, Eq, Ord, Enum, Bounded, Generic, ToJSON, FromJSON)
+
+data Powerup = Normal | PeekSelf | PeekOpponent | PeekSO | Switch | PeekSwitch | PeekDouble
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)
+
+data Card = Card {rank :: Rank, suit:: Suit, powerup :: Powerup} 
+  deriving (Eq, Generic, ToJSON, FromJSON)
+
+type Deck = [Card]
+
+newtype Hand = Hand [Card] deriving (Show, Eq, Generic, ToJSON, FromJSON)
+
+instance Show Card where
+    show (Card r s _) = show r ++ " of " ++ show s
+
+-- =============================================================================
+-- Card Actions
 
 valueRules :: Rank -> Suit -> Int
 valueRules Joker Red         = -1
@@ -95,9 +101,6 @@ buildDeck = standard ++ jokers
       , Card Joker Black (powerRules Joker Black)
       , Card Joker Black (powerRules Joker Black)
       ]
-
-showCardRS :: Card -> String
-showCardRS (Card r s _) = show r ++ " of " ++ show s 
 
 drawCard :: Deck -> (Card, Deck)
 drawCard [] = error "Cannot draw from an empty deck!"

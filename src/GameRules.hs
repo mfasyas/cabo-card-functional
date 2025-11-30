@@ -6,58 +6,81 @@ import Card
 
 type Rule = GameState -> GameAction -> Either String ()
 
--- Turn Check, mengecek apa yang seharusnya terjadi.
+-- Pattern Mathing getting playerId for actions.
+-- Needed because of different types of actions
+getActor :: GameAction -> Int
+getActor (DrawAction playerId)         = playerId
+getActor (DiscardAction playerId _)    = playerId
+getActor (TimpaAction playerId _)      = playerId
+getActor (PassTimpaAction playerId)    = playerId
+getActor (SkipPowerupAction playerId)  = playerId
+getActor (TargetAction playerId _ _)   = playerId
+getActor (KabulAction playerId)        = playerId
+getActor (FinishTurnAction playerId)   = playerId
+getActor (InitPeekAction playerId _ _) = playerId
+
+-- 1. TURN CHECK
 isPlayerTurn :: Rule
-isPlayerTurn gamestate action = 
-    let player_id = case action of
-            DrawAction p           -> p
-            DiscardAction p _      -> p 
-            TargetAction p _       -> p 
-            FinishGameAction p     -> p
+isPlayerTurn ofGameState action = 
+    let actor = getActor action
+    in case phase ofGameState of
+        InitialPeekPhase (nextP:_) ->
+            if actor == nextP then Right () else Left $ "Wait! Current player " ++ show nextP
+        
+        InitPeekFeedback p _ ->
+            if actor == p then Right () else Left "You are looking at cards spied on."
 
-    in if player_id == playerId (currentPlayer gamestate)
-       then Right ()
-       else Left "Bukan giliran Anda!"
+        TimpaRound _ _ asker _ -> 
+            if actor == asker then Right () else Left $ "Player in turn " ++ show asker ++ " (stack)."
+            
+        _ -> 
+            if actor == currentTurn ofGameState then Right () else Left "Not your Turn!"
 
--- Phase Check, cek aksi apa yang seharusnya terjadi.
+-- 2. PHASE CHECK
 isPhaseCorrect :: Rule
-isPhaseCorrect gamestate action =
-    case (phase gamestate, action) of
+isPhaseCorrect ofGameState action =
+    case (phase ofGameState, action) of
+        -- Peek phase control
+        (InitialPeekPhase _, InitPeekAction _ _ _) -> Right ()
+        (InitPeekFeedback _ _, FinishTurnAction _) -> Right () 
+        
+        -- Draw & Discard phase control
         (DrawPhase, DrawAction _)             -> Right ()
         (DiscardPhase, DiscardAction _ _)     -> Right ()
-        (ResolvePowerup _, TargetAction _ _)  -> Right ()
-        (GameOver, _)                         -> Left "Permainan Berakhir."
-        _                                     -> Left "Aksi tidak valid di fase ini."
+        
+        -- Stack control
+        (TimpaRound{}, TimpaAction _ _)       -> Right ()
+        (TimpaRound{}, PassTimpaAction _)     -> Right ()
+        
+        -- Trigger powerup control
+        (ResolvePowerup _, TargetAction _ _ _) -> Right ()
+        (ResolvePowerup _, SkipPowerupAction _) -> Right ()
+        
+        -- Kabul and Finish turn control
+        (PostRoundDecision, KabulAction _)    -> Right ()
+        (PostRoundDecision, FinishTurnAction _) -> Right ()
+        
+        -- End entire game
+        (GameOver, _)                         -> Left "Game Over"
+        (p, a)                                -> Left $ "Action not valid in phase " ++ show p
 
--- Index Check, mengecek keberadaan kartu di tangan suatu player.
+-- 3. INDEX CHECK
 isValidIndex :: Rule
-isValidIndex gamestate (DiscardAction _ idx) = checkIndex gamestate idx
-isValidIndex gamestate (TargetAction _ (playerIdx1, playerIdx2)) = do
-    checkIndex gamestate playerIdx1
-    checkOpponentIndex gamestate playerIdx2
+isValidIndex ofGameState (DiscardAction pid idx) = checkHandIdx ofGameState pid idx
+isValidIndex ofGameState (TimpaAction pid idx)   = checkHandIdx ofGameState pid idx
 isValidIndex _ _ = Right ()
 
-checkIndex :: GameState -> Int -> Either String ()
-checkIndex gamestate idx = 
-    let (Hand hands) = hand (currentPlayer gamestate)
-    in if idx >= 0 && idx < length hands
-       then Right ()
-       else Left $ "Index kartu " ++ show idx ++ " tidak valid."
+checkHandIdx :: GameState -> Int -> Int -> Either String ()
+checkHandIdx ofGameState pid idx =
+    let p = (players ofGameState) !! pid
+        (Hand h) = hand p
+    in if idx >= 0 && idx < length h then Right () else Left "Card index not valid."
 
-checkOpponentIndex :: GameState -> Int -> Either String ()
-checkOpponentIndex gamestate idx =
-    let 
-        opp = getOpponent gamestate
-        (Hand h) = hand opp
-    in if idx >= 0 && idx < length h
-       then Right ()
-       else Left $ "Index kartu lawan " ++ show idx ++ " tidak valid."
-
--- Combinator
 infixl 0 .&&.
 (.&&.) :: Rule -> Rule -> Rule
-(r1 .&&. r2) gamestate action = r1 gamestate action >> r2 gamestate action
+(r1 .&&. r2) ofGameState action = r1 ofGameState action >> r2 ofGameState action
 
--- HAPUS isTargetCountValid dari sini
+-- 4. RULE CHECK
+-- If one of the rule Fails, go to the error case.
 gameRules :: Rule
 gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex

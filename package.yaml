@@ -53,6 +53,11 @@ library:
     - base >= 4.7 && < 5
     - random
     - array
+    - mtl
+    - aeson
+    - scotty
+    - wai-cors
+    - stm
 
 executables:
   cabo-functional-fix-exe:
