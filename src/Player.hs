@@ -24,3 +24,8 @@ emptyHand = Hand []
 
 makePlayer :: Int -> Player
 makePlayer pid = Player pid emptyHand 0
+
+{-
+A player is defined as a data that contains an ID as identifier, 
+hand that is a list of cards, and the score of the player
+-}

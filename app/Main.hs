@@ -2,14 +2,14 @@ module Main where
 
 import System.IO
 import Text.Read (readMaybe)
-import Card (shuffleDeck, buildDeck, Card(..), Rank(..), Suit(..), Hand(..))
+import Card 
 import Player
 import GameStates
 import GameEngine (updateGame)
 
 main :: IO ()
 main = do
-    putStrLn "=== SIMULASI GAME ENGINE ==="
+    putStrLn "====== GAME SIMULATION IN CLI ======"
     deck <- shuffleDeck buildDeck
     let state0 = initialState deck
     gameLoop state0
@@ -21,16 +21,16 @@ gameLoop state = do
     if phase state == GameOver
         then do
             putStrLn "\n!!! GAME OVER !!!"
-            putStrLn "=== KLASEMEN AKHIR ==="
+            putStrLn "=== STANDINGS ==="
             mapM_ (\p -> putStrLn $ "Player " ++ show (playerId p) ++ 
-                                   " | Score: " ++ show (handScore (hand p)) ++ 
-                                   " | POINTS: " ++ show (matchPoints p)) 
+                                   " | SCORE  : " ++ show (handScore (hand p)) ++ 
+                                   " | POINTS : " ++ show (matchPoints p)) 
                   (players state)
         else do
             let prompt = case phase state of
                            InitialPeekPhase _ -> "\n[INIT] initpeek <i1> <i2>: "
-                           InitPeekFeedback _ _ -> "\n[INFO] Ketik 'finish' untuk lanjut: "
-                           TimpaRound{} -> "\n[TIMPA] timpa <idx> / pass: "
+                           InitPeekFeedback _ _ -> "\n[INFO] Type 'finish' to proceed: "
+                           TimpaRound{} -> "\n[== STACK ==] timpa <idx> / pass: "
                            PostRoundDecision -> "\n[END] kabul / finish: "
                            _ -> "\nCMD: draw | discard <i> | target <pid> <ids...> | skip: "
             
@@ -43,22 +43,22 @@ gameLoop state = do
             
             case action of
                 Nothing -> do
-                    putStrLn "[ERROR] Command salah."
+                    putStrLn "[== ERROR ==] Wrong Command."
                     gameLoop state
                 Just act -> do
                     case updateGame state act of
                         Left err -> do
-                            putStrLn $ "[GAGAL] " ++ err
+                            putStrLn $ "[== FAILED ==] " ++ err
                             gameLoop state 
                         Right newState -> do
-                            putStrLn "[OK]"
+                            putStrLn "[==== OK ====] "
                             gameLoop newState 
 
 getCurrentActor :: GameState -> Int
 getCurrentActor gs = 
     case phase gs of
         InitialPeekPhase (p:_) -> p
-        InitPeekFeedback p _ -> p -- PENTING: Agar info ditampilkan ke pemain yang benar
+        InitPeekFeedback p _ -> p 
         TimpaRound _ _ asking _ -> asking
         _ -> currentTurn gs
 
@@ -68,16 +68,21 @@ printState gs = do
     print gs 
 
     let actorId = getCurrentActor gs
-    let actor = (players gs) !! actorId
-    let (Hand h) = hand actor
+        actor = (players gs) !! actorId
+        (Hand h) = hand actor
 
     -- Tampilkan kartu tangan
-    putStrLn $ "Kartu Anda (Player " ++ show actorId ++ "):"
-    mapM_ (\(i, c) -> putStrLn $ "  [" ++ show i ++ "] " ++ show c) (zip [0..] h)
+    putStrLn $ "Your Cards (Player " ++ show actorId ++ "):"
+    -- mapM_ (\(i, c) -> putStrLn $ "  [" ++ show i ++ "] " ++ show c) (zip [0..] h) -- for testing
+    let cardStrings = map (\(i, c) -> "[" ++ "Card at " ++ show i ++ "] ") (zip [0..] h)
+        fullLine    = unwords cardStrings -- Gabungkan dengan spasi
+
+    -- Print sekali saja
+    putStrLn fullLine
     
     -- Tampilkan Private Info jika ada
     case lookup actorId (privateInfo gs) of
-        Just msg -> putStrLn $ "\n[!!! INFO RAHASIA !!!] -> " ++ msg
+        Just msg -> putStrLn $ "\n[!!! SECRET INFORMATION !!!] -> " ++ msg
         Nothing  -> return ()
 
 parseInput :: Int -> String -> Maybe GameAction

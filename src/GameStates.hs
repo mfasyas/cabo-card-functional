@@ -9,8 +9,8 @@ import GHC.Generics (Generic)
 import Data.Aeson (ToJSON, FromJSON)
 
 data GamePhase
-    = InitialPeekPhase [Int]      -- Giliran input
-    | InitPeekFeedback Int [Int]  -- FASE BARU: Giliran baca hasil (PlayerId, RemainingList)
+    = InitialPeekPhase [Int]    
+    | InitPeekFeedback Int [Int] 
     | DrawPhase
     | DiscardPhase
     | TimpaRound 
@@ -47,6 +47,19 @@ data GameState = GameState
     ,   privateInfo     :: [(Int, String)]
     } deriving (Generic, ToJSON, FromJSON)
 
+{-
+    As it is named for, GameState is defining the core structure of state of the game.
+    The main purpose is to check at which phase of the game is currently on, 
+    which player is in turn playing, and what action can be done in the current state.
+
+    As functionality aspect, the game doesnt necessarily changin the state of the game,
+    it creates a new one. So in this instances, tracing error becomes more easy.
+-}
+
+currentPlayer :: GameState -> Player
+currentPlayer gs = (players gs) !! (currentTurn gs)
+
+-- Defining initial state of the game as a table with 4 players given 4 cards.
 initialState :: Deck -> GameState
 initialState deck = 
     let
@@ -66,13 +79,11 @@ initialState deck =
     ,   discardPile     = []
     ,   currentTurn     = 0 
     ,   phase           = InitialPeekPhase [0, 1, 2, 3] 
-    ,   logs            = ["Permainan Dimulai. Fase Intip Awal."]
+    ,   logs            = ["Game Started. Peek two of your cards!"]
     ,   privateInfo     = []
     }
 
-currentPlayer :: GameState -> Player
-currentPlayer gs = (players gs) !! (currentTurn gs)
-
+-- CLI helper for showing state of the game
 instance Show GameState where
     show gs = 
         let
@@ -82,27 +93,29 @@ instance Show GameState where
             row2 = showP 2 ++ "      " ++ showP 3
             
             phaseMsg = case phase gs of
-                InitialPeekPhase (p:_)    -> "INTIP AWAL: Giliran Pemain " ++ show p
-                InitPeekFeedback p _      -> "INTIP AWAL: Hasil Pemain " ++ show p ++ " (Ketik 'finish' untuk lanjut)"
-                TimpaRound r _ asker _    -> "TIMPA CHECK (Rank: " ++ show r ++ ") -> Menunggu P" ++ show asker
-                PostRoundDecision         -> "AKHIR GILIRAN -> Ketik 'kabul' atau 'finish'"
+                InitialPeekPhase (p:_)    -> "PEEK PHASE: Player in Turn " ++ show p
+                InitPeekFeedback p _      -> "PEEK PHASE: Your card " ++ show p ++ " (type 'finish' to proceed)"
+                TimpaRound r _ asker _    -> "Stack check (Rank: " ++ show r ++ ") -> Waiting for P" ++ show asker
+                PostRoundDecision         -> "End of Turn -> type 'kabul' atau 'finish'"
                 p -> show p
 
         in unlines 
-            [ "=================== TABLE ==================="
+            [ "============================= TABLE ============================="
+            , ""
             , row1
             , ""
             , row2
-            , "============================================="
+            , ""
+            , "================================================================="
             , "Discard Pile: " ++ showTop (discardPile gs) 
             , "Draw Deck   : " ++ show (length (drawDeck gs))
             , "Phase       : " ++ phaseMsg
-            , "============================================="
+            , "================================================================="
             ]
         where
             showTop [] = "[Empty]"
             showTop (c:_) = show c
             showPlayer p = 
                 let (Hand h) = hand p
-                    masked = unwords (replicate (length h) "[#]")
+                    masked = unwords (replicate (length h) "[[]]")
                 in "P" ++ show (playerId p) ++ "(" ++ show (matchPoints p) ++ "pts): " ++ masked
