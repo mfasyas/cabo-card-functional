@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kabul Card Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div id="turn-overlay" class="overlay backdrop-blur hidden">
+        <div class="overlay-card pulse">
+            <h2>GILIRAN BERUBAH</h2>
+            <p>Berikan ke: <span id="next-player-name" class="highlight">Player -</span></p>
+            <button class="btn-primary large" onclick="confirmTurnStart()">SAYA SIAP!</button>
+        </div>
+    </div>
+
+    <div id="info-overlay" class="overlay hidden" onclick="closeInfoModal()">
+        <div class="overlay-card info-card" onclick="event.stopPropagation()">
+            <h3>HASIL PEEK / INFO</h3>
+            <div id="info-content"></div>
+            <button class="btn-secondary" onclick="closeInfoModal()">TUTUP</button>
+        </div>
+    </div>
+
+    <div id="game-over-overlay" class="overlay hidden">
+        <div class="overlay-card">
+            <h1 class="danger">GAME OVER</h1>
+            <div id="winner-text"></div>
+            <button class="btn-primary" onclick="resetGame()">MAIN LAGI</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        
+        <div class="top-bar">
+            <div class="phase-box" id="phase-display">LOADING...</div>
+            <div class="log-box">
+                <ul id="game-logs"></ul>
+            </div>
+        </div>
+
+        <div class="table-area">
+            
+            <div class="center-deck">
+                <div class="deck-group">
+                    <div id="deck-card" class="card back" onclick="actionDraw()">
+                        <span class="deck-text">DECK</span>
+                    </div>
+                    <span class="badge" id="deck-count">0</span>
+                </div>
+                
+                <div class="discard-group">
+                    <div id="discard-pile" class="card placeholder">Empty</div>
+                    <span class="label">Discard Pile</span>
+                </div>
+            </div>
+
+            <div id="seat-top" class="seat seat-top"></div>
+            <div id="seat-left" class="seat seat-left"></div>
+            <div id="seat-right" class="seat seat-right"></div>
+            
+            <div id="seat-bottom" class="seat seat-bottom">
+                <div class="player-info">
+                    <span id="my-name">ANDA</span>
+                    <span id="my-score" class="badge">0</span>
+                </div>
+                
+                <div class="hand-container" id="my-hand"></div>
+
+                <div class="control-panel">
+                    <div id="instruction" class="instruct">Menunggu...</div>
+                    <div class="btn-group">
+                        <button id="btn-draw" class="btn hidden" onclick="actionDraw()">AMBIL KARTU</button>
+                        
+                        <button id="btn-use-powerup" class="btn btn-gold hidden" onclick="actionUsePowerup()">GUNAKAN</button>
+                        <button id="btn-skip-powerup" class="btn btn-red hidden" onclick="actionSkipPowerup()">SKIP</button>
+
+                        <button id="btn-stack" class="btn btn-gold hidden" onclick="actionStack()">TIMPA</button>
+                        <button id="btn-pass-stack" class="btn hidden" onclick="actionPassStack()">PASS</button>
+
+                        <button id="btn-kabul" class="btn btn-gold hidden" onclick="actionKabul()">KABUL</button>
+                        <button id="btn-finish" class="btn hidden" onclick="actionFinishTurn()">FINISH TURN</button>
+                        
+                        <button class="btn btn-small btn-red" onclick="resetGame()">↻</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

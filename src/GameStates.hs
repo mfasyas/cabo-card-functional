@@ -9,21 +9,32 @@ import GHC.Generics (Generic)
 import Data.Aeson (ToJSON, FromJSON)
 
 data GamePhase
-    = DrawPhase
+    = InitialPeekPhase [Int]    
+    | InitPeekFeedback Int [Int] 
+    | DrawPhase
     | DiscardPhase
+    | TimpaRound 
+        { targetRank :: Rank
+        , originIdx :: Int
+        , askingIdx :: Int
+        , savedPowerup :: Powerup
+        }
     | ResolvePowerup Powerup
+    | PostRoundDecision       
     | GameOver
     deriving (Show, Eq, Generic, ToJSON, FromJSON)
--- Game Phases
 
 data GameAction
     = DrawAction Int
     | DiscardAction Int Int
-    | TargetAction Int (Int, Int) -- di awal Int [Int] jaga-jaga lupa
-    | FinishGameAction Int
+    | TimpaAction Int Int
+    | PassTimpaAction Int
+    | SkipPowerupAction Int
+    | TargetAction Int Int [Int] 
+    | KabulAction Int
+    | FinishTurnAction Int
+    | InitPeekAction Int Int Int 
     deriving (Show, Eq, Generic, ToJSON, FromJSON)
--- Action Games
--- Bagian TargetAction menyimpan index player saat turn dan player setelahnya.
 
 data GameState = GameState
     {
@@ -34,24 +45,29 @@ data GameState = GameState
     ,   phase           :: GamePhase
     ,   logs            :: [String]
     ,   privateInfo     :: [(Int, String)]
-    } deriving (Show, Generic, ToJSON, FromJSON)
--- Game States (Alternatif Table)
--- Ini digunakan agar kode lebih deklaratif dan harapannya akan k
---  lebih mudah untuk pembuatan UI/UX
+    } deriving (Generic, ToJSON, FromJSON)
 
--- Inisiasi state awal permainan
+{-
+    As it is named for, GameState is defining the core structure of state of the game.
+    The main purpose is to check at which phase of the game is currently on, 
+    which player is in turn playing, and what action can be done in the current state.
+
+    As functionality aspect, the game doesnt necessarily changin the state of the game,
+    it creates a new one. So in this instances, tracing error becomes more easy.
+-}
+
+currentPlayer :: GameState -> Player
+currentPlayer gs = (players gs) !! (currentTurn gs)
+
+-- Defining initial state of the game as a table with 4 players given 4 cards.
 initialState :: Deck -> GameState
 initialState deck = 
     let
-        -- Gunakan parameter 'deck', bukan 'shuffledDeck'
         (p1Cards, rest1) = splitAt 4 deck
         (p2Cards, rest2) = splitAt 4 rest1
         (p3Cards, rest3) = splitAt 4 rest2
         (p4Cards, rest4) = splitAt 4 rest3
  
-        drawDeckRest = rest4
-        -- drawDeckRest = rest2
-
         p1 = (makePlayer 0) { hand = Hand p1Cards }
         p2 = (makePlayer 1) { hand = Hand p2Cards }
         p3 = (makePlayer 2) { hand = Hand p3Cards }
@@ -59,22 +75,47 @@ initialState deck =
     in GameState 
     {
         players         = [p1, p2, p3, p4]
-    ,   drawDeck        = drawDeckRest
+    ,   drawDeck        = rest4
     ,   discardPile     = []
-    ,   currentTurn     = 0
-    ,   phase           = DrawPhase
-    ,   logs            = ["Permainan Dimulai."]
+    ,   currentTurn     = 0 
+    ,   phase           = InitialPeekPhase [0, 1, 2, 3] 
+    ,   logs            = ["Game Started. Peek two of your cards!"]
     ,   privateInfo     = []
     }
 
--- Helper untuk player aktif
-currentPlayer :: GameState -> Player
-currentPlayer gamestate = (players gamestate) !! (currentTurn gamestate)
+-- CLI helper for showing state of the game
+instance Show GameState where
+    show gs = 
+        let
+            pList = players gs
+            showP i = if i < length pList then showPlayer (pList !! i) else ""
+            row1 = showP 0 ++ "      " ++ showP 1
+            row2 = showP 2 ++ "      " ++ showP 3
+            
+            phaseMsg = case phase gs of
+                InitialPeekPhase (p:_)    -> "PEEK PHASE: Player in Turn " ++ show p
+                InitPeekFeedback p _      -> "PEEK PHASE: Your card " ++ show p ++ " (type 'finish' to proceed)"
+                TimpaRound r _ asker _    -> "Stack check (Rank: " ++ show r ++ ") -> Waiting for P" ++ show asker
+                PostRoundDecision         -> "End of Turn -> type 'kabul' atau 'finish'"
+                p -> show p
 
--- Mengambil Object Lawan (Asumsi pemain berikutnya)
--- Subject to change
-getOpponent :: GameState -> Player
-getOpponent gs = 
-    let myPid = currentTurn gs
-        oppPid = (myPid + 1) `mod` length (players gs)
-    in (players gs) !! oppPid
+        in unlines 
+            [ "============================= TABLE ============================="
+            , ""
+            , row1
+            , ""
+            , row2
+            , ""
+            , "================================================================="
+            , "Discard Pile: " ++ showTop (discardPile gs) 
+            , "Draw Deck   : " ++ show (length (drawDeck gs))
+            , "Phase       : " ++ phaseMsg
+            , "================================================================="
+            ]
+        where
+            showTop [] = "[Empty]"
+            showTop (c:_) = show c
+            showPlayer p = 
+                let (Hand h) = hand p
+                    masked = unwords (replicate (length h) "[[]]")
+                in "P" ++ show (playerId p) ++ "(" ++ show (matchPoints p) ++ "pts): " ++ masked
