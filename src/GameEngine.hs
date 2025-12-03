@@ -201,7 +201,7 @@ applyPowerupLogic gs PeekSO t [myIdx, oppIdx] =
                " | OPP (P" ++ show t ++ ") [" ++ show oppIdx ++ "]: " ++ safeGetCard opp oppIdx
     in Right (gs, info)
 
--- 4. PEEK SWITCH (Lihat Dulu, Lalu Tukar)
+-- 4. PEEK SWITCH 
 applyPowerupLogic gs PeekSwitch t [myIdx, oppIdx] =
     let me  = currentPlayer gs
         opp = (players gs) !! t

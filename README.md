@@ -21,12 +21,14 @@ The game is played by hotseat that is, players took turn to play the game in one
 
 - Kabul (end game) and scoring system.
 
-- Separation of side effects for main logic of the game to the mian program.
+- Multiplayer hotseat gameplay
+
+- Stack cards in timpa.
 
 - Declarative Rule Systems for scalability of features.
 
 ## Dependencies
-Project is built using with
+Project is built using
 
 - **[Scotty](https://github.com/scotty-web/scotty)** 
 
@@ -37,8 +39,6 @@ Project is built using with
 - **[Software Transactional Memory](https://hackage.haskell.org/package/stm)**
 
 - **[Monad Class for Transformers](https://hackage.haskell.org/package/mtl)**
-
-More specifically you can see the file `package.yaml` in the repository for more information
 
 ## Clone and Installations
 
@@ -96,5 +96,3 @@ The repository is divided into 4 branches.
 * Branch `user-interface` for testing the game using HTML. This branch mainly used for integrating the game to the frontend.
 
 * Branch `non-drs` is the first generation code. The game is implemented in imperative first, then using refactored to the current code in `main`.
-
-For the functional programming paradigm that is used here is mainly about switching imperative code (traces back to some commits) into a more declarative code that is easily maintained and much more.
