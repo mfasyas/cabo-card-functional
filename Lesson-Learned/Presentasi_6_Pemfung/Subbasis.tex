@@ -1,0 +1,208 @@
+\documentclass{beamer}
+\usetheme{ALUF}
+
+\usepackage[utf8]{inputenc}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[expert]{mathdesign}
+\usepackage[protrusion=true,expansion=true,tracking=true,kerning=true]{microtype}
+\usepackage{amsmath, mathrsfs, amssymb}
+
+\usepackage{xcolor} % For colors
+
+\usepackage{listings}
+
+\lstdefinestyle{haskellstyle}{
+  language=Haskell,
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  numberstyle=\tiny\color{gray},
+  numbers=none,
+  showstringspaces=false,
+  tabsize=2,
+  breaklines=true,
+  frame=single,
+  framerule=0.5pt,
+  backgroundcolor=\color{gray!5},
+  literate={\$}{{\$}}1, % <--- penting! agar tanda $ tidak bikin error
+}
+
+
+\newcommand\restr[2]{{% we make the whole thing an ordinary symbol
+  \left.\kern-\nulldelimiterspace % automatically resize the bar with \right
+  #1 % the function
+  \littletaller % pretend it's a little taller at normal size
+  \right|_{#2} % this is the delimiter
+  }}
+
+\newcommand{\littletaller}{\mathchoice{\vphantom{\big|}}{}{}{}}
+
+
+\title{Permainan Kartu Kabul}
+\subtitle{Proyek Pemrograman Fungsional}
+\author{Muhammad Fasya Syaifullah}
+\date{4 Desember 2025}
+\institute{Universitas Indonesia}
+
+\begin{document}
+
+\begin{frame}[plain,t]
+\titlepage
+\end{frame}
+
+\begin{frame}{Daftar Isi}
+    \tableofcontents
+\end{frame}
+
+%=============================================================================================
+\section{Kemajuan}
+\begin{frame}{Target}
+    \textbf{Target Progress 6 (24 November 2025)}
+    \begin{itemize}
+        \item Tambahan fitur sesuai kabul dan timpa kartu.
+        \item \textit{User-interface} untuk main game di browser.
+        \item Perbaikan error yang tersisa.
+    \end{itemize}
+
+    \textbf{Kemajuan}: Semua selesai
+\end{frame}
+
+\begin{frame}{\textit{Peek Phase}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth]{gambarku/PeekPhase1.PNG}
+        \caption{Intip kartu pada index 1 dan 3}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{Stack Phase}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth]{gambarku/StackPhase.PNG}
+        \caption{Lewati timpa}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{Stack Phase}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth]{gambarku/StackPhase1.PNG}
+        \caption{Penalti timpa}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{Powerup Phase}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth]{gambarku/SkipPower.PNG}
+        \caption{Lewati powerup}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{Kabul}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\linewidth]{gambarku/Kabul1.PNG}
+        \caption{Trigger Kabul}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{Score}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=.9\linewidth]{gambarku/Score.PNG}
+        \caption{Skor pemain}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{User-Interface}}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{gambarku/UI.PNG}
+        \caption{Game di browser}
+    \end{figure}
+\end{frame}
+
+\section{Daftar Commit}
+\begin{frame}{Link Commit}
+    \centering
+    \href{https://github.com/mfasyas/cabo-card-functional/blob/main/README.md}{Readme klik di sini}\\
+    \vspace{2 cm}
+    \href{https://github.com/mfasyas/cabo-card-functional/commit/2de8d12eb40a66bb8d13dea0c1ba351f6cdbf04e}{Commit klik di sini}
+\end{frame}
+
+\section{Hal yang Dipelajari}
+
+\begin{frame}{Haskell untuk Game}
+    Kelebihan:
+    \begin{itemize}
+        \item Bagus untuk logika dari game, unggul ketika membuat game strategi dan teka-teki.
+        \item \textit{Type system} ketat mengeliminasi berbagi bug.
+    \end{itemize}
+
+    Kekurangan:
+    \begin{itemize}
+        \item \textit{Engine gap}, kurang bervariasi dan lebih banyak membuat berbagai hal dari awal.
+        \item Mutasi \textit{state} yang perlu diawasi dengan baik.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Contoh}
+
+\begin{lstlisting}[style=haskellstyle]
+logicDraw :: GameState -> Either String GameState
+logicDraw ofGameState =
+    case drawDeck ofGameState of
+        [] -> Right $ ofGameState { phase = GameOver, logs = logs ofGameState ++ ["Deck's Empty"] }
+        (c:rest) -> 
+            let p = currentPlayer ofGameState
+                (Hand oldH) = hand p
+                newP = p { hand = Hand (c : oldH) }
+                newPs = replacePlayer (players ofGameState) (currentTurn ofGameState) newP
+
+                drawnInfo = "You've taken the card " ++ show c
+            in Right $ ofGameState 
+                { drawDeck      = rest
+                , players       = newPs
+                , phase         = DiscardPhase
+                , logs          = logs ofGameState ++ ["Draw new card."] 
+                , privateInfo   = [(playerId p, drawnInfo)]
+                }
+\end{lstlisting}
+
+\end{frame}
+
+
+\begin{frame}{Pemisahan Tanggung Jawab}
+    Prinsip pemisahan tanggung jawab berhasil mengurai kekusutan kode dengan membagi aplikasi menjadi tiga domain tegas yaitu Main untuk interaksi kotor, GameRules untuk validasi aturan, dan GameEngine untuk eksekusi logika. Struktur modular ini membuat pemeliharaan kode menjadi jauh lebih efisien dan aman, di mana perubahan pada aturan validasi permainan tidak akan merusak mekanisme antarmuka pengguna atau logika inti perhitungan skor.
+\end{frame}
+
+\begin{frame}[fragile]{Contoh}
+Bagian kode di Main
+
+\begin{lstlisting}[style=haskellstyle]
+gameLoop :: GameState -> IO ()
+gameLoop state = do
+    printState state
+    
+    if phase state == GameOver
+        then do
+            ...
+        else do
+            let prompt = case phase state of
+            ...
+            
+            putStr prompt
+            hFlush stdout
+            input <- getLine
+            
+            let pid = getCurrentActor state
+            let action = parseInput pid input
+        ...
+\end{lstlisting}
+\end{frame}
+
+\end{document}

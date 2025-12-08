@@ -1,0 +1,163 @@
+\documentclass{beamer}
+\usetheme{ALUF}
+
+\usepackage[utf8]{inputenc}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[expert]{mathdesign}
+\usepackage[protrusion=true,expansion=true,tracking=true,kerning=true]{microtype}
+\usepackage{amsmath, mathrsfs, amssymb}
+\usepackage{tikz}
+
+
+\newcommand\restr[2]{{% we make the whole thing an ordinary symbol
+  \left.\kern-\nulldelimiterspace % automatically resize the bar with \right
+  #1 % the function
+  \littletaller % pretend it's a little taller at normal size
+  \right|_{#2} % this is the delimiter
+  }}
+
+\newcommand{\littletaller}{\mathchoice{\vphantom{\big|}}{}{}{}}
+
+\newcommand{\Tt}{\mathscr{T}}
+\newcommand{\xx}{\mathcal{X}}
+\newcommand{\bb}{\mathscr{B}}
+\newcommand{\rr}{\mathbb{R}}
+\newcommand{\Pp}{\mathcal{P}}
+\newcommand{\yy}{\mathscr{Y}}
+\newcommand{\nn}{\mathbb{N}}
+\newcommand{\Ss}{\mathscr{S}}
+\newcommand{\ee}{\varepsilon}
+\newcommand{\uu}{\mathscr{U}}
+\newcommand{\kosong}{\varnothing}
+\newcommand{\Zz}{\mathbb{Z}}
+
+
+
+\title{Permainan Kartu Kabul}
+\subtitle{Proyek Pemrograman Fungsional}
+\author{Muhammad Fasya Syaifullah}
+\date{26 Oktober 2025}
+\institute{Universitas Indonesia}
+
+\begin{document}
+
+\begin{frame}[plain,t]
+\titlepage
+\end{frame}
+
+\begin{frame}{Daftar Isi}
+    \tableofcontents
+\end{frame}
+
+%=============================================================================================
+
+\section{Ide Project} 
+\begin{frame}{Permainan Kabul} 
+    Permainan kabul (\textit{Cabo}) adalah permainan kartu yang dibuat oleh Melissa Limes and Mandy Henning. Permainan ini adalah permainan papan menggunakan kartu yang sudah dimodifikasi dengan gambar dan nilai tertentu. Namun, pada game yang akan dibuat akan berdasarkan modifikasi-modifikasi tertentu. 
+\end{frame}
+
+\begin{frame}{Tujuan Permainan}
+    \begin{itemize}
+        \item Permainan dimainkan oleh 2-4 orang.
+        \item Kartu yang digunakan adalah kartu set remi dengan tambahan Joker.
+        \item Target akhir permainan adalah untuk memiliki total nilai kartu paling kecil di antara pemain lainnya.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{\textit{Game}}
+    Teknologi yang digunakan:
+    \begin{itemize}
+        \item Untuk \textit{backend}: Haskell
+        \item Untuk \textit{interface}: Belum ditentukan
+    \end{itemize}
+
+    Target luaran project adalah sebuah permainan berbasis fungsional dengan \textit{interface} sederhana.
+\end{frame}
+
+\section{Rencana Kerja}
+\begin{frame}{Target per pekan}
+    \begin{itemize}
+        \item \textbf{Target Progress 1 (27 Oktober 2025)}
+        \begin{itemize}
+            \item Membuat rancangan Game secara umum.
+            \item Menyiapkan stuktur tipe data untuk Kartu, Pemain, Meja dan integrasinya seperti ambil kartu dan buang kartu. 
+            \item Tampilan output sederhana untuk masing-masing tipe data.
+        \end{itemize}
+
+        \item \textbf{Target Progress 2 (3 November 2025)}
+        \begin{itemize}
+            \item Operasi-operasi sederhana untuk permainan.
+            \item Kartu aktif terbuka, kartu pasif tertutup.
+            \item Modifikasi urutan kartu untuk penempatan strategis.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Target per pekan}
+    \begin{itemize}
+        \item \textbf{Target Progres 3 (10 November 2025)}
+        \begin{itemize}
+            \item Menjalankan permainan secara lengkap tanpa efek spesial kartu. 
+            \item Semua state permainan sederhana dapat dilakukan.
+            \item Sistem giliran pemain sudah diimplementasikan.
+        \end{itemize}
+
+        \item \textbf{Target Progres 4 (17 November 2025)}
+        \begin{itemize}
+            \item Integrasi efek spesial masing-masing kartu.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Target per pekan}
+    \begin{itemize}
+        \item \textbf{Target Progres 5 (24 November 2025)}
+        \begin{itemize}
+            \item Perbaikan error.
+            \item \textit{Finishing} program dengan \textit{refactoring}.
+            \item Menentukan \textit{interface}
+        \end{itemize}
+
+        \item \textbf{Target Progres 6 (1 Desember 2025)}
+        \begin{itemize}
+            \item Murni penyelesaian \textit{interface}
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\section{Fungsional}
+
+\begin{frame}{Aspek Fungsional}
+    \begin{itemize}
+        \item \textbf{Type Constructor, Typeclasses} untuk memodelkan kartu, pemain, meja, dan state game.
+        \item \textbf{Pure Functions, Higher Order Functions} untuk aktivitas permainan seperti \textit{deck building, score count, } dan seterusnya.
+        \item \textbf{Monad} untuk \textit{randomness} dan \textit{input output}.
+        \item \textbf{Composability} yaitu game dibangun dari fungsi-fungsi kecil yang diintegrasikan.
+    \end{itemize}
+\end{frame}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%=============================================================================================
+\end{document}

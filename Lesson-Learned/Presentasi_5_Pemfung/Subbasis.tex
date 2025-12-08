@@ -1,0 +1,224 @@
+\documentclass{beamer}
+\usetheme{ALUF}
+
+\usepackage[utf8]{inputenc}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[expert]{mathdesign}
+\usepackage[protrusion=true,expansion=true,tracking=true,kerning=true]{microtype}
+\usepackage{amsmath, mathrsfs, amssymb}
+
+\usepackage{xcolor} % For colors
+
+\usepackage{listings}
+
+\lstdefinestyle{haskellstyle}{
+  language=Haskell,
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  numberstyle=\tiny\color{gray},
+  numbers=none,
+  showstringspaces=false,
+  tabsize=2,
+  breaklines=true,
+  frame=single,
+  framerule=0.5pt,
+  backgroundcolor=\color{gray!5},
+  literate={\$}{{\$}}1, % <--- penting! agar tanda $ tidak bikin error
+}
+
+
+\newcommand\restr[2]{{% we make the whole thing an ordinary symbol
+  \left.\kern-\nulldelimiterspace % automatically resize the bar with \right
+  #1 % the function
+  \littletaller % pretend it's a little taller at normal size
+  \right|_{#2} % this is the delimiter
+  }}
+
+\newcommand{\littletaller}{\mathchoice{\vphantom{\big|}}{}{}{}}
+
+
+\title{Permainan Kartu Kabul}
+\subtitle{Proyek Pemrograman Fungsional}
+\author{Muhammad Fasya Syaifullah}
+\date{24 November 2025}
+\institute{Universitas Indonesia}
+
+\begin{document}
+
+\begin{frame}[plain,t]
+\titlepage
+\end{frame}
+
+\begin{frame}{Daftar Isi}
+    \tableofcontents
+\end{frame}
+
+%=============================================================================================
+\section{Kemajuan}
+\begin{frame}{Target}
+    \textbf{Target Progress 5 (24 November 2025)}
+    \begin{itemize}
+        \item \textit{Refactor} kode untuk \textit{Declarative Rule System}
+        \item Menyicil \textit{User-Interface}
+    \end{itemize}
+
+    Kemajuan:
+    \begin{itemize}
+        \item \textit{Declarative Rule System} berhasil diterapkan namun masih ada kekurangan fitur dibandingkan sebelumnya.
+        \item \textit{User Interface} secara garis besar sudah terlihat. Target berikutnya adalah agar dapat dilakukan permainan sebagai mana semestinya.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Tampilan Permainan}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{UI_UX.png}
+        \caption{Tampilan Permainan}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Flow Permainan}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.75\linewidth]{InitialState.png}
+        \caption{Tampilan Awal Permainan}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Flow Permainan}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.75\linewidth]{InitialState.png}
+        \caption{Tampilan Awal Permainan}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Fase Draw}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.55\linewidth]{draw.png}
+        \caption{Ambil kartu di deck dan pilih tangan yang di buang}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{\textit{Trigger Powerup}}
+    \begin{columns}
+        \begin{column}{0.5\textwidth} 
+            \begin{figure}
+                \centering
+                \includegraphics[width=1\linewidth]{trigger1.png}
+                \caption{Pilih target}
+            \end{figure}
+        \end{column}
+        \begin{column}{0.5\textwidth}  
+            \begin{figure}
+                \centering
+                \includegraphics[width=1\linewidth]{trigger2.png}
+                \caption{Informasi muncul}
+            \end{figure}
+        \end{column}
+\end{columns}
+\end{frame}
+
+\section{Daftar Commit}
+\begin{frame}{Link Commit}
+    \centering
+    \href{https://github.com/mfasyas/cabo-card-functional/blob/main/README.md}{Readme klik di sini}\\
+    \vspace{2 cm}
+    \href{https://github.com/mfasyas/cabo-card-functional/commits/main/}{Commit klik di sini}
+\end{frame}
+
+\section{Hal yang Dipelajari}
+
+\begin{frame}{\textit{Flow} menjadi \textit{Constraint}}
+    Usahakan dalam membuat game, buat aturan deklaratif dari awal sebisa mungkin.
+    \vspace{1 cm}
+    
+    Pada kode lama, aturan permainan dikendalikan oleh banyak pernyataan bersarang \textit{if-else} yang tersebar di seluruh fungsi yang dipakai dalam \textit{loop} permainan. Dengan sistem deklaratif, logika menjadi lebih terpusat dan mudah dibaca, serta untuk jangka panjang lebih mudah diperbarui.
+\end{frame}
+
+\begin{frame}{Komposisi Fungsi}
+    \textit{Refactoring} juga menyoroti keunggulan komposisi dibandingkan dengan \textit{nesting} di mana pada kode yang imperatif, menambahkan aturan baru artinya menambahkan lebih banyak pernyataan \textit{if-else}. 
+    
+    Sedangkan dalam sistem deklaratif aturan-aturan kompleks disusun dari fungsi-fungsi kecil sederhana dan independen. Artinya, struktur merujuk pada merangkai aturan-aturan kecil yang valid, bukan membangun prosedur raksasa yang menangani banyak kondisi.
+\end{frame}
+
+\begin{frame}[fragile]{Contoh 1}
+Sebelumnya:
+\begin{lstlisting}[style=haskellstyle]
+playerTurn table idx = do
+    putStrLn "Masukkan kartu:"
+    input <- getLine
+    let choice = read input
+    if choice < 0 || choice >= length hand 
+       then do 
+             putStrLn "Index salah!"
+             playerTurn table idx   -- Rekursif manual
+       else ...                     -- Lanjut logic
+\end{lstlisting}
+
+Setelahnya:
+\begin{lstlisting}[style=haskellstyle]
+isPlayerTurn :: Rule
+    ...
+
+isPhaseCorrect :: Rule
+    ...
+
+isValidIndex :: Rule
+isValidIndex gs (DiscardAction _ idx) = checkIndex gs idx
+
+gameRules :: Rule
+gameRules = isPlayerTurn .&&. isPhaseCorrect .&&. isValidIndex
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Contoh 2 (1)}
+
+\begin{lstlisting}[style=haskellstyle]
+data Table = Table
+    { players :: [Player]
+    , drawDeck :: Deck
+    , discardPile :: Deck
+    , standings :: [(Int, Int)] -- (idPlayer, score)
+    } deriving (Eq)
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]{Contoh 2 (2)}
+
+\begin{lstlisting}[style=haskellstyle]
+data GamePhase
+    = DrawPhase
+    | DiscardPhase
+    | ResolvePowerup Powerup
+    | GameOver
+    deriving (Show, Eq, Generic, ToJSON, FromJSON)
+
+data GameAction
+    = DrawAction Int
+    | DiscardAction Int Int
+    | TargetAction Int (Int, Int) 
+    | FinishGameAction Int
+    deriving (Show, Eq, Generic, ToJSON, FromJSON)
+
+data GameState = GameState {
+        players         :: [Player]
+    ,   drawDeck        :: Deck
+    ,   discardPile     :: Deck
+    ,   currentTurn     :: Int
+    ,   phase           :: GamePhase
+    ,   logs            :: [String]
+    ,   privateInfo     :: [(Int, String)]
+    } deriving (Show, Generic, ToJSON, FromJSON)
+\end{lstlisting}
+
+\end{frame}
+
+
+\end{document}

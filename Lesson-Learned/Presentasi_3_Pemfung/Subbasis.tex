@@ -1,0 +1,189 @@
+\documentclass{beamer}
+\usetheme{ALUF}
+
+\usepackage[utf8]{inputenc}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[expert]{mathdesign}
+\usepackage[protrusion=true,expansion=true,tracking=true,kerning=true]{microtype}
+\usepackage{amsmath, mathrsfs, amssymb}
+\usepackage{tikz}
+
+\usepackage{xcolor} % For colors
+
+\usepackage{listings}
+
+\lstdefinestyle{haskellstyle}{
+  language=Haskell,
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  numberstyle=\tiny\color{gray},
+  numbers=none,
+  showstringspaces=false,
+  tabsize=2,
+  breaklines=true,
+  frame=single,
+  framerule=0.5pt,
+  backgroundcolor=\color{gray!5},
+  literate={\$}{{\$}}1, % <--- penting! agar tanda $ tidak bikin error
+}
+
+
+\newcommand\restr[2]{{% we make the whole thing an ordinary symbol
+  \left.\kern-\nulldelimiterspace % automatically resize the bar with \right
+  #1 % the function
+  \littletaller % pretend it's a little taller at normal size
+  \right|_{#2} % this is the delimiter
+  }}
+
+\newcommand{\littletaller}{\mathchoice{\vphantom{\big|}}{}{}{}}
+
+
+\title{Permainan Kartu Kabul}
+\subtitle{Proyek Pemrograman Fungsional}
+\author{Muhammad Fasya Syaifullah}
+\date{11 November 2025}
+\institute{Universitas Indonesia}
+
+\begin{document}
+
+\begin{frame}[plain,t]
+\titlepage
+\end{frame}
+
+\begin{frame}{Daftar Isi}
+    \tableofcontents
+\end{frame}
+
+%=============================================================================================
+\section{Kemajuan}
+\begin{frame}{Target Sejauh Ini}
+    \textbf{Target Progress 3 (27 Oktober 2025)}
+    \begin{itemize}
+        \item Mengatur \textit{game logic}.
+        \item Menentukan pemenang.
+        \item Permainan dasar sudah dapat dilakukan.
+        \item Menambahkan perhitungan skor
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.9\linewidth]{folder/1.PNG}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.9\linewidth]{folder/2.PNG}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.9\linewidth]{folder/3.PNG}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.9\linewidth]{folder/4.PNG}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.9\linewidth]{folder/5.PNG}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.9\linewidth]{folder/6.PNG}
+\end{frame}
+
+\begin{frame}{Tampilan Output}
+    \centering
+    \includegraphics[width=0.7\linewidth]{folder/end.PNG}
+\end{frame}
+
+
+\begin{frame}[fragile]{Pekan 3}
+    \begin{lstlisting}[style=haskellstyle]
+playerTurn :: Table -> Int -> IO Table
+playerTurn table playerIdx = do
+    let currentPlayer = players table !! playerIdx
+    putStrLn $ "\nPlayer " ++ show (playerId currentPlayer) ++ "'s turn"
+    putStrLn "Do you want to end the game now? (y/n)"
+    endChoice <- getLine
+    if endChoice == "y"
+        then do
+            putStrLn $ "\nGame Stopped, Kabul!"
+            return table { drawDeck = [] } -- Trigger end case di mainLoop
+        else do
+            let tableAfterDraw = drawForHand table playerIdx
+                updatedPlayer = players tableAfterDraw !! playerIdx
+                currentHand = hand updatedPlayer
+
+            putStrLn "Current hand, top of Card is newly drawn Card:"
+            putStrLn $ showHandWithIndices currentHand
+
+            choice <- getValidChoice (length $ let Hand h = currentHand in h)
+            let tableAfterDiscard = discardFromHand tableAfterDraw playerIdx choice
+            putStrLn $ "Card " ++ show choice ++ " has been discarded."
+            
+            addToPile tableAfterDiscard playerIdx
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Pekan 3}
+\begin{lstlisting}[style=haskellstyle]
+playRounds :: Table -> Int -> IO Table
+playRounds table currentPlayerIdx
+    | null (drawDeck table) = do
+        putStrLn "\nKartu di dek habis! Permainan berakhir!"
+        return table
+    | otherwise = do
+        print table
+        let numPlayers = length $ players table
+        
+        newTable <- playerTurn table currentPlayerIdx
+        
+        let nextPlayerIdx = (currentPlayerIdx + 1) `mod` numPlayers
+        playRounds newTable nextPlayerIdx
+\end{lstlisting}
+    
+\end{frame}
+
+\section{Daftar Commit}
+\begin{frame}{Commit}
+    \href{https://github.com/mfasyas/cabo-card-functional/commits/add-feature}{link commit}
+\end{frame}
+
+\section{Hal yang Dipelajari}
+\begin{frame}{Aspek Fungsional}
+    \begin{itemize}
+        \item Aspek pure function dilanggar setiap permainan dilakukan pada bagian \texttt{deckBuild}.
+
+        \item Fungsi itu tidak pure karena memakai \texttt{randomRIO} dan mutasi array yang menghasilkan keluaran berbeda tiap pemanggilan. Efeknya hasil shuffle tidak deterministik dan harus dijalankan dalam konteks \texttt{IO}.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Hal yang Dipelajari}
+\textbf{Algoritma Shuffle Deck} untuk mengacak kartu untuk dibagikan ke pemain.
+\begin{lstlisting}[style=haskellstyle]
+shuffleDeck :: Deck -> IO Deck
+shuffleDeck cards = do
+    let len = length cards
+    arr <- newListArray (0, len - 1) cards :: IO (IOArray Int Card)
+    forM [0 .. len - 2] $ \i -> do
+        j <- randomRIO (i, len - 1) -- Get a random index
+        vi <- readArray arr i        -- Swap elements
+        vj <- readArray arr j
+        writeArray arr i vj
+        writeArray arr j vi
+    mapM (readArray arr) [0 .. len - 1]
+\end{lstlisting}
+    
+\end{frame}
+
+%=============================================================================================
+\end{document}

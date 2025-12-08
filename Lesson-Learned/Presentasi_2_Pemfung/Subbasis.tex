@@ -1,0 +1,186 @@
+\documentclass{beamer}
+\usetheme{ALUF}
+
+\usepackage[utf8]{inputenc}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[expert]{mathdesign}
+\usepackage[protrusion=true,expansion=true,tracking=true,kerning=true]{microtype}
+\usepackage{amsmath, mathrsfs, amssymb}
+\usepackage{tikz}
+
+\usepackage{xcolor} % For colors
+
+\usepackage{listings}
+
+\lstdefinestyle{haskellstyle}{
+  language=Haskell,
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  numberstyle=\tiny\color{gray},
+  numbers=none,
+  showstringspaces=false,
+  tabsize=2,
+  breaklines=true,
+  frame=single,
+  framerule=0.5pt,
+  backgroundcolor=\color{gray!5},
+  literate={\$}{{\$}}1, % <--- penting! agar tanda $ tidak bikin error
+}
+
+
+\newcommand\restr[2]{{% we make the whole thing an ordinary symbol
+  \left.\kern-\nulldelimiterspace % automatically resize the bar with \right
+  #1 % the function
+  \littletaller % pretend it's a little taller at normal size
+  \right|_{#2} % this is the delimiter
+  }}
+
+\newcommand{\littletaller}{\mathchoice{\vphantom{\big|}}{}{}{}}
+
+
+\title{Permainan Kartu Kabul}
+\subtitle{Proyek Pemrograman Fungsional}
+\author{Muhammad Fasya Syaifullah}
+\date{3 November 2025}
+\institute{Universitas Indonesia}
+
+\begin{document}
+
+\begin{frame}[plain,t]
+\titlepage
+\end{frame}
+
+\begin{frame}{Daftar Isi}
+    \tableofcontents
+\end{frame}
+
+%=============================================================================================
+\section{Kemajuan}
+\begin{frame}{Target Sejauh Ini}
+    \begin{itemize}
+        \item \textbf{Target Progress 1 (27 Oktober 2025)}
+        \begin{itemize}
+            \item Membuat rancangan Game secara umum.
+            \item Menyiapkan stuktur tipe data untuk Kartu, Pemain, Meja dan integrasinya seperti ambil kartu dan buang kartu. 
+            \item Tampilan output sederhana untuk masing-masing tipe data.
+        \end{itemize}
+
+        \item \textbf{Target Progress 2 (3 November 2025)}
+        \begin{itemize}
+            \item Operasi-operasi sederhana untuk permainan.
+            \item Kartu terambil terbuka, kartu di tangan tertutup.
+            \item Modifikasi urutan kartu untuk penempatan strategis.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Pekan 1}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.65\linewidth]{Showing Table.PNG}
+        \caption{\textit{Starting Point}}
+        \label{fig:starting point}
+    \end{figure}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{Players Turn.PNG}
+        \caption{\textit{Player's Turn}}
+        \label{fig:starting point}
+    \end{figure}
+\end{frame}
+\begin{frame}[fragile]{Pekan 1}
+    \begin{lstlisting}[style=haskellstyle]
+        data Card = Card { rank :: Rank, suit :: Suit, powerup :: Powerup} 
+            deriving (Eq)
+    \end{lstlisting}
+    \begin{lstlisting}[style=haskellstyle]
+        data Player = Player {playerId :: Int, hand :: Hand} 
+            deriving (Show, Eq)
+    \end{lstlisting}
+    \begin{lstlisting}[style=haskellstyle]
+        type Deck = [Card]
+        type Pile = [Card]
+    \end{lstlisting}
+    \begin{lstlisting}[style=haskellstyle]
+        data Table = Table{ 
+            players :: [Player], drawDeck :: Deck, discardPile :: Pile
+        }
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Pekan 2}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{Activity.PNG}
+        \caption{Peek Card}
+        \label{fig:peek card}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Pekan 2}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{Players Turn2.PNG}
+        \caption{Peek Card}
+        \label{fig:throwcard}
+    \end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Pekan 2}
+    \begin{lstlisting}[style=haskellstyle]
+        drawForHand :: Table -> Int -> Table
+        drawForHand table playerIdx =
+            let ps = players table
+                deck = drawDeck table
+                (drawnCard, newDeck) = drawCard deck
+                (before, p:after) = splitAt playerIdx ps
+                Hand hs = hand p
+                newHand = drawnCard : hs
+                newPlayer = p { hand = Hand newHand }
+                newPlayers = before ++ [newPlayer] ++ after
+            in table { players = newPlayers, drawDeck = newDeck }
+    \end{lstlisting}
+    \begin{lstlisting}[style=haskellstyle]
+        discardFromHand :: Table -> Int -> Int -> Table
+        discardFromHand table playerIdx discardIdx =
+            let ps = players table
+                pile = discardPile table
+                (before, p:after) = splitAt playerIdx ps
+                Hand hs = hand p
+                (toDiscard, keptHand) = removeAt (discardIdx - 1) hs
+                newPlayer = p { hand = Hand keptHand }
+                newPlayers = before ++ [newPlayer] ++ after
+                newPile = toDiscard : pile
+            in table { players = newPlayers, discardPile = newPile }
+    \end{lstlisting}
+
+\end{frame}
+
+\section{Daftar Commit}
+\begin{frame}{Commit}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\linewidth]{log commit.PNG}
+        \label{fig:log commit}
+    \end{figure}
+    \url{https://github.com/mfasyas/cabo-card-functional/commits/main/}
+\end{frame}
+
+\section{Hal yang Dipelajari}
+\begin{frame}{Aspek Fungsional}
+    \begin{itemize}
+        \item \textbf{Recursion} untuk state permainan. Setiap kali pemain melakukan aksi, akan diciptakan \textit{state} baru yang merepresentasikan kegiatan pemain di meja.
+        \item \textbf{Pure Functions} digunakan pada perhitungan skor dan pengambilan kartu. Hal ini keharusan karena jika suatu kartu tidak pasti, akan berpengaruh ke permainan.
+        \item \textbf{Types} pada pendefinisian \textit{Card}, \textit{Player}, dan \textit{Table}. Penggunaan \textit{type} untuk mendefinisikan ketiga hal tersebut adalah untuk merepresentasikan \textit{state} dari permainan yang akan ditunjukkan ke masing-masing pemain.
+    \end{itemize}
+\end{frame}
+
+
+
+
+%=============================================================================================
+\end{document}

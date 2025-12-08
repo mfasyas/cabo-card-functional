@@ -1,0 +1,161 @@
+\documentclass{beamer}
+\usetheme{ALUF}
+
+\usepackage[utf8]{inputenc}
+\usepackage{palatino}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[expert]{mathdesign}
+\usepackage[protrusion=true,expansion=true,tracking=true,kerning=true]{microtype}
+\usepackage{amsmath, mathrsfs, amssymb}
+\usepackage{tikz}
+
+\usepackage{xcolor} % For colors
+
+\usepackage{listings}
+
+\lstdefinestyle{haskellstyle}{
+  language=Haskell,
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{blue},
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red},
+  numberstyle=\tiny\color{gray},
+  numbers=none,
+  showstringspaces=false,
+  tabsize=2,
+  breaklines=true,
+  frame=single,
+  framerule=0.5pt,
+  backgroundcolor=\color{gray!5},
+  literate={\$}{{\$}}1, % <--- penting! agar tanda $ tidak bikin error
+}
+
+
+\newcommand\restr[2]{{% we make the whole thing an ordinary symbol
+  \left.\kern-\nulldelimiterspace % automatically resize the bar with \right
+  #1 % the function
+  \littletaller % pretend it's a little taller at normal size
+  \right|_{#2} % this is the delimiter
+  }}
+
+\newcommand{\littletaller}{\mathchoice{\vphantom{\big|}}{}{}{}}
+
+
+\title{Permainan Kartu Kabul}
+\subtitle{Proyek Pemrograman Fungsional}
+\author{Muhammad Fasya Syaifullah}
+\date{17 November 2025}
+\institute{Universitas Indonesia}
+
+\begin{document}
+
+\begin{frame}[plain,t]
+\titlepage
+\end{frame}
+
+\begin{frame}{Daftar Isi}
+    \tableofcontents
+\end{frame}
+
+%=============================================================================================
+\section{Kemajuan}
+\begin{frame}{Target}
+    \textbf{Target Progress 4 (17 November 2025)}
+    \begin{itemize}
+        \item Membuat fungsi-fungsi \textit{Powerups} dan \textit{trigger Powerup}
+        \item \textbf{(maju)} Eksplorasi \textit{user interface}.
+    \end{itemize}
+
+    Kemajuan:
+    \begin{itemize}
+        \item Target tidak tercapai sepenuhnya, ada beberapa bagian yang perlu dimodifikasi sehingga alur permainan lebih natural karena adanya powerup.
+        \item Target fungsionalitas belum tercapai.
+        \item \textit{User Interface} akan menggunakan Scotty.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Contoh Fungsi}
+\begin{lstlisting}[style=haskellstyle]
+promptIndex :: Int -> IO Int
+promptIndex maxIdx = do
+    putStrLn $ "Pilih posisi kartu (1 - " ++ show maxIdx ++ "): "
+    input <- getLine
+    case readMaybe input of
+        Just n | n >= 1 && n <= maxIdx -> return n
+        _ -> do 
+            putStrLn "Input tidak valid, coba lagi"
+            promptIndex maxIdx
+
+peekSelf :: Table -> Int -> IO Table
+peekSelf table playerIdx = do
+    let ps = players table
+        p = ps !! playerIdx
+        Hand hs = hand p
+        n = length hs
+    if n == 0 
+        then
+            return table
+        else do 
+            mapM_ (\i -> putStrLn $ show i ++ ". [??]") [1..n]
+
+            idx <- promptIndex n
+            let chosen = hs !! (idx - 1)
+            showCardRS chosen
+            return table
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Contoh Fungsi}
+\begin{lstlisting}[style=haskellstyle]
+peekOpponent :: Table -> Int -> IO Table
+peekOpponent table playerIdx = do
+    let ps         = players table
+        numPlayers = length ps
+        me         = ps !! playerIdx
+        -- sementara: target = pemain berikutnya
+        targetIdx  = (playerIdx + 1) `mod` numPlayers
+        target     = ps !! targetIdx
+        Hand hsOpp = hand target
+        n          = length hsOpp
+
+    if n == 0
+      then do
+        return table
+      else do
+        mapM_ (\i -> putStrLn $ show i ++ ". [??]") [1..n]
+
+        idx <- promptIndex n
+        let chosen = hsOpp !! (idx - 1)
+        showCardRS chosen
+        return table
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Output Program (PeekSelf)}
+    \centering
+    \includegraphics[width=0.6\textwidth]{gambarku/switchWithOpponent.PNG}
+\end{frame}
+
+\begin{frame}{Output Program (PeekSO)}
+    \centering
+    \includegraphics[width=0.8\textwidth]{gambarku/peekSO.PNG}
+\end{frame}
+
+
+\section{Daftar Commit}
+\begin{frame}{link commit}
+
+\href{https://github.com/mfasyas/cabo-card-functional/commits/add-feature/}{klik di sini}
+    
+\end{frame}
+
+\section{Hal yang Dipelajari}
+\begin{frame}{Game Making}
+    \begin{itemize}
+        \item Program yang dibuat masih imperatif (setidaknya terlihat seperti itu). Problmnya, bagaimana cara membuatnya lebih fungsional? Apa yang perlu diubah?
+        \item Gunakan \textit{Declarative Rule System} untuk setiap aksi di permainan. Jadi, alih-alih menuliskan menuliskan aturan permainan langsung sebagai kode, akan dibuat mesin "ajaib" yang membaca deklarasi aturan-aturan permainan (\textit{drawCard, peek,} \textit{matching} sebagai perintah natural untuk dilakukan.
+    \end{itemize}
+\end{frame}
+%=============================================================================================
+\end{document}
